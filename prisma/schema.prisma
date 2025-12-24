@@ -1,0 +1,33 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Asset {
+  id           String   @id
+  name         String
+  serialNumber String   @unique
+  status       String
+  createdAt    DateTime @default(now())
+
+  // Relation : une machine a plusieurs interventions
+  workOrders   WorkOrder[]
+}
+
+model WorkOrder {
+  id          String   @id
+  title       String   // Ex: "Changer le filtre"
+  status      String   // PENDING, COMPLETED
+  priority    String   // LOW, HIGHT
+  createdAt   DateTime @default(now())
+
+  // cle etrangere (Lien vers Asset)
+  assetId     String
+  asset       Asset   @relation(fields: [assetId], references: [id])
+}

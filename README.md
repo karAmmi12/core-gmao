@@ -1,36 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CORE GMAO
 
-## Getting Started
+Application de **Gestion de Maintenance Assistée par Ordinateur** construite avec **Next.js 15**, **Prisma**, et **Clean Architecture**.
 
-First, run the development server:
+## 🏗️ Architecture
+
+Ce projet suit les principes de la **Clean Architecture** avec une séparation stricte en couches :
+
+- **Domain** : Entités métier et règles business (Asset, WorkOrder)
+- **Application** : Use Cases, Services, DTOs, Validation
+- **Infrastructure** : Implémentation Prisma, Dependency Injection
+- **Presentation** : Composants React, UI, Layouts
+
+Voir [ARCHITECTURE.md](ARCHITECTURE.md) pour une documentation complète.
+
+## 🚀 Installation
 
 ```bash
+# 1. Cloner le projet
+git clone https://github.com/votre-username/core-gmao.git
+cd core-gmao
+
+# 2. Installer les dépendances
+npm install
+
+# 3. Configurer les variables d'environnement
+cp .env.example .env
+# Éditez .env avec votre DATABASE_URL
+
+# 4. Initialiser la base de données
+npx prisma migrate dev
+
+# 5. Lancer le serveur de développement
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez [http://localhost:3000](http://localhost:3000) pour voir l'application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🧪 Technologies
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Next.js 15** - Framework React avec App Router et Server Actions
+- **Prisma** - ORM avec Prisma Postgres
+- **TypeScript** - Typage statique
+- **Tailwind CSS** - Styling utility-first
+- **Zod** - Validation des schémas
+- **Lucide React** - Icônes
+- **Clean Architecture** - Organisation du code
 
-## Learn More
+## 📝 Scripts disponibles
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run dev      # Serveur de développement
+npm run build    # Build de production
+npm run start    # Serveur de production
+npm run lint     # Linter ESLint
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📁 Structure du projet
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── core/                    # Logique métier
+│   ├── domain/             # Entités et interfaces
+│   ├── application/        # Use Cases et Services
+│   └── infrastructure/     # Implémentations (Prisma, DI)
+├── presentation/            # Composants React
+│   └── components/
+│       ├── ui/             # Composants réutilisables
+│       ├── features/       # Composants métier
+│       ├── forms/          # Formulaires
+│       └── layouts/        # Layouts
+├── app/                     # Next.js App Router
+└── config/                  # Configuration
+```
 
-## Deploy on Vercel
+## ✨ Fonctionnalités
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- ✅ Gestion des équipements (Assets)
+- ✅ Gestion des ordres de travail (Work Orders)
+- ✅ Dashboard avec statistiques en temps réel
+- ✅ Historique des interventions
+- ✅ Validation des formulaires avec Zod
+- ✅ Architecture scalable et testable
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🔒 Sécurité
+
+⚠️ **Ne commitez jamais** :
+- `.env` (contient des informations sensibles)
+- `prisma/dev.db` (base de données locale)
+- `node_modules/`
+
+Ces fichiers sont déjà dans `.gitignore`.
+
+## 🤝 Contribution
+
+1. Forkez le projet
+2. Créez une branche (`git checkout -b feature/AmazingFeature`)
+3. Commitez vos changements (`git commit -m 'Add some AmazingFeature'`)
+4. Pushez vers la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrez une Pull Request
+
+## 📄 Licence
+
+MIT
+
+## 📚 Documentation
+
+- [Architecture détaillée](ARCHITECTURE.md)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Prisma Documentation](https://www.prisma.io/docs)
