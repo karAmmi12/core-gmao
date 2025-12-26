@@ -6,10 +6,10 @@ import { StatsSkeleton, TableSkeleton } from './LoadingSkeletons';
  */
 export const DashboardLoading = () => {
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8">
+    <div className="container-page">
       <div className="mb-8">
-        <div className="h-8 bg-slate-200 rounded w-1/3 mb-2 animate-pulse"></div>
-        <div className="h-4 bg-slate-200 rounded w-1/4 animate-pulse"></div>
+        <div className="h-8 bg-neutral-200 rounded w-1/3 mb-2 animate-pulse"></div>
+        <div className="h-4 bg-neutral-200 rounded w-1/4 animate-pulse"></div>
       </div>
 
       <div className="mb-8">

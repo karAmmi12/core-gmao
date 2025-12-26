@@ -1,5 +1,5 @@
 import { AssetRepository } from "@/core/domain/repositories/AssetRepository";
-import { Asset, AssetStatus } from "@/core/domain/entities/Asset";
+import { Asset, AssetStatus, AssetType } from "@/core/domain/entities/Asset";
 import { prisma } from "@/lib/prisma";
 
 export class PrismaAssetRepository implements AssetRepository {
@@ -12,17 +12,52 @@ export class PrismaAssetRepository implements AssetRepository {
         serialNumber: asset.serialNumber,
         status: asset.status,
         createdAt: asset.createdAt,
+        parentId: asset.parentId,
+        assetType: asset.assetType,
+        location: asset.location,
+        manufacturer: asset.manufacturer,
+        modelNumber: asset.modelNumber,
+      },
+    });
+  }
+
+  async update(asset: Asset): Promise<void> {
+    await prisma.asset.update({
+      where: { id: asset.id },
+      data: {
+        name: asset.name,
+        serialNumber: asset.serialNumber,
+        status: asset.status,
+        parentId: asset.parentId,
+        assetType: asset.assetType,
+        location: asset.location,
+        manufacturer: asset.manufacturer,
+        modelNumber: asset.modelNumber,
       },
     });
   }
 
   async findAll(): Promise<Asset[]> {
-    const rawAssets = await prisma.asset.findMany();
+    const rawAssets = await prisma.asset.findMany({
+      orderBy: { name: 'asc' }
+    });
     // On convertit les données brutes de Prisma en Entités du Domaine
     return rawAssets.map((raw) => 
-      Asset.restore(raw.id, raw.name, raw.serialNumber, raw.status as AssetStatus, raw.createdAt)
+      Asset.restore(
+        raw.id,
+        raw.name,
+        raw.serialNumber,
+        raw.status as AssetStatus,
+        raw.createdAt,
+        raw.parentId ?? undefined,
+        raw.assetType as AssetType | undefined,
+        raw.location ?? undefined,
+        raw.manufacturer ?? undefined,
+        raw.modelNumber ?? undefined
+      )
     );
   }
+
   async findById(id: string): Promise<Asset | null> {
     const raw = await prisma.asset.findUnique({ where: { id } });
     if (!raw) return null;
@@ -32,7 +67,33 @@ export class PrismaAssetRepository implements AssetRepository {
       raw.name, 
       raw.serialNumber, 
       raw.status as AssetStatus, 
-      raw.createdAt
+      raw.createdAt,
+      raw.parentId ?? undefined,
+      raw.assetType as AssetType | undefined,
+      raw.location ?? undefined,
+      raw.manufacturer ?? undefined,
+      raw.modelNumber ?? undefined
+    );
+  }
+
+  async findWithChildren(id: string): Promise<Asset | null> {
+    const raw = await prisma.asset.findUnique({
+      where: { id },
+      include: { children: true }
+    });
+    if (!raw) return null;
+
+    return Asset.restore(
+      raw.id,
+      raw.name,
+      raw.serialNumber,
+      raw.status as AssetStatus,
+      raw.createdAt,
+      raw.parentId ?? undefined,
+      raw.assetType as AssetType | undefined,
+      raw.location ?? undefined,
+      raw.manufacturer ?? undefined,
+      raw.modelNumber ?? undefined
     );
   }
 

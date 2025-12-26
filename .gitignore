@@ -62,3 +62,9 @@ Thumbs.db
 logs
 *.log
 lerna-debug.log*
+
+# Test files temporaires
+test-*.mjs
+test-*.js
+fix-*.mjs
+final-test.mjs

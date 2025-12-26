@@ -5,15 +5,15 @@ import { Button } from '@/presentation/components/ui/Button';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-6">
       <Card className="max-w-md w-full">
         <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
-          <h1 className="text-6xl font-bold text-slate-900 mb-2">404</h1>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">
+          <AlertCircle className="w-16 h-16 text-primary-500 mx-auto mb-4" />
+          <h1 className="text-6xl font-bold text-neutral-900 mb-2">404</h1>
+          <h2 className="text-2xl font-bold text-neutral-900 mb-2">
             Page introuvable
           </h2>
-          <p className="text-slate-600 mb-6">
+          <p className="text-neutral-600 mb-6">
             La page que vous recherchez n'existe pas ou a été déplacée.
           </p>
           <Link href="/">

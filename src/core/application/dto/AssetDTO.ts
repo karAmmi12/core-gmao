@@ -5,6 +5,17 @@ export interface AssetDTO {
   serialNumber: string;
   status: string;
   createdAt: string; // ISO 8601 format
+  parentId?: string;
+  assetType?: string;
+  location?: string;
+  manufacturer?: string;
+  modelNumber?: string;
+}
+
+export interface AssetTreeDTO extends AssetDTO {
+  children?: AssetTreeDTO[];
+  level: number;
+  parentName?: string;
 }
 
 export interface DashboardStatsDTO {

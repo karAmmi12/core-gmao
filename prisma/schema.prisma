@@ -16,18 +16,165 @@ model Asset {
   status       String
   createdAt    DateTime @default(now())
 
+  // Hiérarchie des actifs (Site > Bâtiment > Ligne > Machine > Composant)
+  parentId     String?
+  parent       Asset?   @relation("AssetHierarchy", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  children     Asset[]  @relation("AssetHierarchy")
+
+  // Métadonnées supplémentaires
+  assetType    String?  // SITE, BUILDING, LINE, MACHINE, COMPONENT
+  location     String?  // Localisation physique
+  manufacturer String?  // Fabricant
+  modelNumber  String?  // Numéro de modèle
+
   // Relation : une machine a plusieurs interventions
   workOrders   WorkOrder[]
+  maintenanceSchedules MaintenanceSchedule[]
+
+  @@index([parentId])
+}
+
+model Technician {
+  id          String   @id
+  name        String
+  email       String   @unique
+  phone       String?
+  skills      String   // JSON array: ["Électricité", "Mécanique", "Hydraulique"]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  workOrders  WorkOrder[]
+  maintenanceSchedules MaintenanceSchedule[]
+
+  @@map("technicians")
 }
 
 model WorkOrder {
   id          String   @id
   title       String   // Ex: "Changer le filtre"
-  status      String   // PENDING, COMPLETED
-  priority    String   // LOW, HIGHT
+  description String?  // Description détaillée
+  status      String   // DRAFT, PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+  priority    String   // LOW, HIGH
   createdAt   DateTime @default(now())
 
-  // cle etrangere (Lien vers Asset)
+  // Planification
+  scheduledAt       DateTime?  // Date/heure prévue
+  startedAt         DateTime?  // Date/heure de début réel
+  completedAt       DateTime?  // Date/heure de fin réelle
+  estimatedDuration Int?       // Durée estimée en minutes
+  actualDuration    Int?       // Durée réelle en minutes
+
+  // Affectation technicien
+  assignedToId String?
+  assignedTo   Technician? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  // Coûts
+  laborCost    Float @default(0)  // Coût main d'œuvre
+  materialCost Float @default(0)  // Coût matériel
+  totalCost    Float @default(0)  // Coût total
+
+  // Relation vers Asset
   assetId     String
   asset       Asset   @relation(fields: [assetId], references: [id])
+
+  // Pièces utilisées
+  parts       WorkOrderPart[]
+
+  @@index([assignedToId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@map("work_orders")
+}
+
+model Part {
+  id               String   @id
+  reference        String   @unique  // Référence unique (ex: FLT-2024-001)
+  name             String              // Nom de la pièce
+  description      String?             // Description détaillée
+  category         String?             // Catégorie (Filtres, Joints, Roulements, etc.)
+  unitPrice        Float               // Prix unitaire en €
+  quantityInStock  Int      @default(0) // Quantité en stock
+  minStockLevel    Int      @default(5) // Seuil d'alerte stock bas
+  supplier         String?             // Fournisseur principal
+  supplierRef      String?             // Référence fournisseur
+  location         String?             // Emplacement dans l'entrepôt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  stockMovements   StockMovement[]
+  workOrderParts   WorkOrderPart[]
+
+  @@index([reference])
+  @@index([category])
+  @@map("parts")
+}
+
+model StockMovement {
+  id          String   @id
+  partId      String
+  part        Part     @relation(fields: [partId], references: [id])
+  
+  type        String   // IN (entrée) ou OUT (sortie)
+  quantity    Int      // Quantité (positif pour entrée, négatif pour sortie)
+  reason      String?  // Raison: "Achat", "Utilisation intervention", "Correction inventaire", etc.
+  reference   String?  // Référence externe (bon de commande, n° intervention, etc.)
+  
+  createdAt   DateTime @default(now())
+  createdBy   String?  // ID utilisateur (pour traçabilité future)
+
+  @@index([partId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
+
+model WorkOrderPart {
+  id           String     @id
+  workOrderId  String
+  workOrder    WorkOrder  @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  
+  partId       String
+  part         Part       @relation(fields: [partId], references: [id])
+  
+  quantity     Int        // Quantité utilisée
+  unitPrice    Float      // Prix unitaire au moment de l'utilisation (historique)
+  totalPrice   Float      // Prix total = quantity * unitPrice
+  
+  createdAt    DateTime   @default(now())
+
+  @@index([workOrderId])
+  @@index([partId])
+  @@map("work_order_parts")
+}
+
+model MaintenanceSchedule {
+  id                String    @id
+  assetId           String
+  asset             Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  title             String    
+  description       String?   
+  
+  frequency         String    // DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY
+  intervalValue     Int       @default(1)
+  
+  lastExecutedAt    DateTime? 
+  nextDueDate       DateTime 
+  
+  estimatedDuration Float?    
+  assignedToId      String?   
+  assignedTo        Technician? @relation(fields: [assignedToId], references: [id])
+  
+  isActive          Boolean   @default(true)
+  priority          String    @default("LOW")
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([assetId])
+  @@index([nextDueDate])
+  @@index([isActive])
+  @@map("maintenance_schedules")
 }

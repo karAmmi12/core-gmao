@@ -20,9 +20,9 @@ export default async function AssetDetailPage({ params }: { params: Promise<{ id
 
   return (
     <MainLayout>
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="container-narrow">
         
-        <Link href="/" className="inline-flex items-center text-slate-500 hover:text-slate-900 mb-6 transition-colors">
+        <Link href="/" className="inline-flex items-center link-neutral mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" /> Retour au parc
         </Link>
 

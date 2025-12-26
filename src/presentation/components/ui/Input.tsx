@@ -10,20 +10,19 @@ export const Input = ({ label, error, className, ...props }: InputProps) => {
   return (
     <div>
       {label && (
-        <label className="block text-xs font-bold text-slate-700 mb-1">
+        <label className="block text-xs font-bold text-neutral-700 mb-1">
           {label}
         </label>
       )}
       <input
         className={clsx(
-          'w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm',
-          'focus:outline-none focus:ring-2 focus:ring-orange-500',
-          error && 'border-red-500',
+          'input-base bg-neutral-50 text-sm',
+          error && 'border-danger-500',
           className
         )}
         {...props}
       />
-      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+      {error && <p className="text-danger-500 text-xs mt-1">{error}</p>}
     </div>
   );
 };
@@ -38,22 +37,21 @@ export const Select = ({ label, error, children, className, ...props }: SelectPr
   return (
     <div>
       {label && (
-        <label className="block text-xs font-bold text-slate-700 mb-1">
+        <label className="block text-xs font-bold text-neutral-700 mb-1">
           {label}
         </label>
       )}
       <select
         className={clsx(
-          'w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm',
-          'focus:outline-none focus:ring-2 focus:ring-orange-500',
-          error && 'border-red-500',
+          'input-base bg-neutral-50 text-sm',
+          error && 'border-danger-500',
           className
         )}
         {...props}
       >
         {children}
       </select>
-      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+      {error && <p className="text-danger-500 text-xs mt-1">{error}</p>}
     </div>
   );
 };

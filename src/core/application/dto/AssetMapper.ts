@@ -1,5 +1,5 @@
 import { Asset } from "@/core/domain/entities/Asset";
-import { AssetDTO } from "./AssetDTO";
+import { AssetDTO, AssetTreeDTO } from "./AssetDTO";
 
 export class AssetMapper {
   static toDTO(asset: Asset): AssetDTO {
@@ -9,6 +9,11 @@ export class AssetMapper {
       serialNumber: asset.serialNumber,
       status: asset.status,
       createdAt: asset.createdAt.toISOString(),
+      parentId: asset.parentId,
+      assetType: asset.assetType,
+      location: asset.location,
+      manufacturer: asset.manufacturer,
+      modelNumber: asset.modelNumber,
     };
   }
 
@@ -23,7 +28,12 @@ export class AssetMapper {
       dto.name,
       dto.serialNumber,
       dto.status as any,
-      new Date(dto.createdAt)
+      new Date(dto.createdAt),
+      dto.parentId,
+      dto.assetType as any,
+      dto.location,
+      dto.manufacturer,
+      dto.modelNumber
     );
   }
 }

@@ -13,8 +13,8 @@ export const DashboardAssetTable = ({ assets }: DashboardAssetTableProps) => {
     return (
       <Card>
         <div className="p-12 text-center">
-          <Box className="mx-auto text-slate-300 mb-3" size={48} />
-          <p className="text-slate-500">Aucun équipement enregistré</p>
+          <Box className="mx-auto text-neutral-300 mb-3" size={48} />
+          <p className="text-neutral-500">Aucun équipement enregistré</p>
         </div>
       </Card>
     );
@@ -22,52 +22,52 @@ export const DashboardAssetTable = ({ assets }: DashboardAssetTableProps) => {
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-slate-200 px-6 py-4 bg-slate-50">
-        <h2 className="text-lg font-bold text-slate-900">Parc Machine</h2>
+      <div className="border-b border-neutral-200 px-6 py-4 bg-neutral-50">
+        <h2 className="text-lg text-heading">Parc Machine</h2>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead className="bg-neutral-50 border-b border-neutral-200">
             <tr>
-              <th className="text-left px-6 py-3 text-xs font-bold text-slate-600 uppercase tracking-wide">
+              <th className="text-left px-6 py-3 text-label text-neutral-600">
                 Nom
               </th>
-              <th className="text-left px-6 py-3 text-xs font-bold text-slate-600 uppercase tracking-wide">
+              <th className="text-left px-6 py-3 text-label text-neutral-600">
                 N° Série
               </th>
-              <th className="text-left px-6 py-3 text-xs font-bold text-slate-600 uppercase tracking-wide">
+              <th className="text-left px-6 py-3 text-label text-neutral-600">
                 État
               </th>
-              <th className="text-left px-6 py-3 text-xs font-bold text-slate-600 uppercase tracking-wide">
+              <th className="text-left px-6 py-3 text-label text-neutral-600">
                 Ajouté le
               </th>
-              <th className="text-left px-6 py-3 text-xs font-bold text-slate-600 uppercase tracking-wide">
+              <th className="text-left px-6 py-3 text-label text-neutral-600">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-neutral-100">
             {assets.map((asset) => (
-              <tr key={asset.id} className="hover:bg-slate-50 transition-colors">
+              <tr key={asset.id} className="hover:bg-neutral-50 transition-colors">
                 <td className="px-6 py-4">
-                  <span className="font-semibold text-slate-900">{asset.name}</span>
+                  <span className="font-semibold text-neutral-900">{asset.name}</span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="font-mono text-sm text-slate-600">
+                  <span className="font-mono text-sm text-neutral-600">
                     {asset.serialNumber}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <AssetStatusBadge status={asset.status} />
                 </td>
-                <td className="px-6 py-4 text-sm text-slate-600">
+                <td className="px-6 py-4 text-sm text-neutral-600">
                   {new Date(asset.createdAt).toLocaleDateString('fr-FR')}
                 </td>
                 <td className="px-6 py-4">
                   <Link
                     href={`/assets/${asset.id}`}
-                    className="text-orange-600 hover:text-orange-500 font-medium text-sm transition-colors"
+                    className="link-primary font-medium text-sm"
                   >
                     Voir détails →
                   </Link>

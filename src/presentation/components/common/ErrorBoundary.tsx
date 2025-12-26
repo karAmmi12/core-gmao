@@ -40,14 +40,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-6">
           <Card className="max-w-md w-full">
             <div className="text-center">
-              <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">
+              <AlertTriangle className="w-16 h-16 text-danger-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-neutral-900 mb-2">
                 Une erreur est survenue
               </h2>
-              <p className="text-slate-600 mb-6">
+              <p className="text-neutral-600 mb-6">
                 {this.state.error?.message || 'Erreur inconnue'}
               </p>
               <Button
