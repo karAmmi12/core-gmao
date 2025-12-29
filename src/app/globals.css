@@ -72,108 +72,109 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* ===== Classes réutilisables ===== */
+/* ===== Classes réutilisables (Mobile-First) ===== */
 @layer components {
-  /* Containers */
+  /* Containers - Mobile first */
   .container-page {
-    @apply max-w-6xl mx-auto px-6 py-8;
+    @apply w-full px-4 py-4 mx-auto sm:px-6 sm:py-6 lg:py-8 lg:max-w-6xl;
   }
   
   .container-narrow {
-    @apply max-w-4xl mx-auto px-6 py-8;
+    @apply w-full px-4 py-4 mx-auto sm:px-6 sm:py-6 lg:py-8 lg:max-w-4xl;
   }
   
-  /* Cards */
+  /* Cards - Mobile first */
   .card-base {
-    @apply rounded-xl shadow-sm border border-neutral-200 p-6 bg-white;
+    @apply rounded-lg shadow-sm border border-neutral-200 p-4 bg-white sm:p-5 lg:p-6 lg:rounded-xl;
   }
   
   .card-stat {
-    @apply rounded-xl border p-5 bg-linear-to-br;
+    @apply rounded-lg border p-4 bg-linear-to-br sm:p-5 lg:rounded-xl;
   }
   
   /* Buttons de base */
   .btn-base {
-    @apply font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm lg:font-bold;
   }
   
   .btn-primary {
-    @apply font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-primary-600 hover:bg-primary-500 text-white;
+    @apply font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-primary-600 hover:bg-primary-500 active:bg-primary-700 text-white text-sm lg:font-bold;
   }
   
   .btn-secondary {
-    @apply font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-neutral-200 hover:bg-neutral-300 text-neutral-700;
+    @apply font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-neutral-200 hover:bg-neutral-300 active:bg-neutral-400 text-neutral-700 text-sm lg:font-bold;
   }
   
   .btn-success {
-    @apply font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-success-600 hover:bg-success-500 text-white;
+    @apply font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-success-600 hover:bg-success-500 active:bg-success-700 text-white text-sm lg:font-bold;
   }
   
   .btn-danger {
-    @apply font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-danger-600 hover:bg-danger-500 text-white;
+    @apply font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-danger-600 hover:bg-danger-500 active:bg-danger-700 text-white text-sm lg:font-bold;
   }
   
-  /* Input base */
+  /* Input base - Mobile first */
   .input-base {
-    @apply w-full px-4 py-2.5 border border-neutral-300 rounded-lg 
+    @apply w-full px-3 py-2 border border-neutral-300 rounded-lg text-base
            focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-           disabled:bg-neutral-100 disabled:cursor-not-allowed;
+           disabled:bg-neutral-100 disabled:cursor-not-allowed
+           sm:px-4 sm:py-2.5;
   }
   
   /* Text styles */
   .text-heading {
-    @apply font-bold text-neutral-900;
+    @apply font-semibold text-neutral-900 text-base sm:font-bold sm:text-lg;
   }
   
   .text-label {
-    @apply text-xs font-bold uppercase tracking-wide;
+    @apply text-xs font-semibold uppercase tracking-wide sm:font-bold;
   }
   
   .text-value {
-    @apply text-3xl font-bold;
+    @apply text-2xl font-bold sm:text-3xl;
   }
   
   .text-subtitle {
-    @apply text-sm;
+    @apply text-xs sm:text-sm;
   }
   
-  /* Badge */
+  /* Badge - Mobile first */
   .badge-base {
-    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium sm:px-2.5 sm:py-1 sm:font-semibold;
   }
   
   .badge-success {
-    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-success-100 text-success-700;
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success-100 text-success-700 sm:px-2.5 sm:py-1 sm:font-semibold;
   }
   
   .badge-warning {
-    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-warning-100 text-warning-700;
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-warning-100 text-warning-700 sm:px-2.5 sm:py-1 sm:font-semibold;
   }
   
   .badge-danger {
-    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-danger-100 text-danger-700;
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-danger-100 text-danger-700 sm:px-2.5 sm:py-1 sm:font-semibold;
   }
   
   .badge-neutral {
-    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-neutral-200 text-neutral-600;
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-neutral-200 text-neutral-600 sm:px-2.5 sm:py-1 sm:font-semibold;
   }
   
   /* Link styles */
   .link-primary {
-    @apply text-primary-600 hover:text-primary-500 transition-colors;
+    @apply text-primary-600 hover:text-primary-500 active:text-primary-700 transition-colors;
   }
   
   .link-neutral {
-    @apply text-neutral-600 hover:text-neutral-900 transition-colors;
+    @apply text-neutral-600 hover:text-neutral-900 active:text-neutral-700 transition-colors;
   }
   
-  /* Grid layouts */
+  /* Grid layouts - Mobile first */
   .grid-stats {
-    @apply grid grid-cols-1 md:grid-cols-4 gap-4;
+    @apply grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4 sm:gap-4;
   }
   
   .grid-table {
-    @apply grid grid-cols-12 gap-4 items-center;
+    @apply grid grid-cols-12 gap-2 items-center sm:gap-4;
   }
   
   /* Status colors */
@@ -216,22 +217,5 @@ body {
   
   .text-status-value-broken {
     @apply text-danger-900;
-  }
-  
-  /* Skeleton loaders */
-  .skeleton {
-    @apply bg-neutral-200 rounded animate-pulse;
-  }
-  
-  .skeleton-text {
-    @apply h-4 bg-neutral-200 rounded animate-pulse;
-  }
-  
-  .skeleton-heading {
-    @apply h-6 bg-neutral-200 rounded animate-pulse;
-  }
-  
-  .skeleton-title {
-    @apply h-8 bg-neutral-200 rounded animate-pulse;
   }
 }

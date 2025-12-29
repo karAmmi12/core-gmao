@@ -1,4 +1,4 @@
-import { TechnicianRepository } from "@/core/domain/repositories/TechnicianRepository";
+import { TechnicianRepository, UpdateTechnicianData } from "@/core/domain/repositories/TechnicianRepository";
 import { Technician, TechnicianSkill } from "@/core/domain/entities/Technician";
 import { prisma } from "@/lib/prisma";
 
@@ -19,6 +19,21 @@ export class PrismaTechnicianRepository implements TechnicianRepository {
 
   async findById(id: string): Promise<Technician | null> {
     const raw = await prisma.technician.findUnique({ where: { id } });
+    if (!raw) return null;
+
+    return Technician.restore(
+      raw.id,
+      raw.name,
+      raw.email,
+      raw.phone ?? undefined,
+      JSON.parse(raw.skills) as TechnicianSkill[],
+      raw.isActive,
+      raw.createdAt
+    );
+  }
+
+  async findByEmail(email: string): Promise<Technician | null> {
+    const raw = await prisma.technician.findUnique({ where: { email } });
     if (!raw) return null;
 
     return Technician.restore(
@@ -97,5 +112,26 @@ export class PrismaTechnicianRepository implements TechnicianRepository {
         raw.createdAt
       )
     );
+  }
+
+  async update(id: string, data: UpdateTechnicianData): Promise<void> {
+    const updateData: Record<string, unknown> = {};
+
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.phone !== undefined) updateData.phone = data.phone || null;
+    if (data.skills !== undefined) updateData.skills = JSON.stringify(data.skills);
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+    await prisma.technician.update({
+      where: { id },
+      data: updateData,
+    });
+  }
+
+  async delete(id: string): Promise<void> {
+    await prisma.technician.delete({
+      where: { id },
+    });
   }
 }

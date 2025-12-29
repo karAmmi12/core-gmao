@@ -1,4 +1,4 @@
-import { Badge } from '@/presentation/components/ui/Badge';
+import { Badge } from '@/components';
 import { CheckCircle, AlertCircle, Zap } from 'lucide-react';
 
 interface AssetStatusBadgeProps {

@@ -1,4 +1,4 @@
-import { DashboardLoading } from '@/presentation/components/common/Loading';
+import { DashboardLoading } from '@/components/common/Loading';
 
 export default function Loading() {
   return <DashboardLoading />;

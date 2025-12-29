@@ -1,10 +1,10 @@
 'use client';
 
 import { AssetDTO } from '@/core/application/dto/AssetDTO';
-import { Card } from '@/presentation/components/ui/Card';
+import { Card } from '@/components';
 import { AssetStatusBadge } from './AssetStatusBadge';
 import { updateAssetStatusAction } from '@/app/actions';
-import { Button } from '@/presentation/components/ui/Button';
+import { Button } from '@/components';
 import { useState } from 'react';
 
 interface AssetDetailCardProps {

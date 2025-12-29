@@ -2,10 +2,10 @@ import { Suspense } from 'react';
 import DIContainer from '@/core/infrastructure/di/DIContainer';
 import { AssetService } from '@/core/application/services/AssetService';
 import { TechnicianService } from '@/core/application/services/TechnicianService';
-import { MaintenanceScheduleForm } from '@/presentation/components/features/forms/MaintenanceScheduleForm';
+import { MaintenanceScheduleForm } from '@/components/features/forms/MaintenanceScheduleForm';
 import { createMaintenanceScheduleAction } from '@/app/actions';
-import { MainLayout } from '@/presentation/components/layouts/MainLayout';
-import { TableSkeleton } from '@/presentation/components/common/LoadingSkeletons';
+import { MainLayout } from '@/components';
+import { TableSkeleton } from '@/components/common/LoadingSkeletons';
 
 export const dynamic = 'force-dynamic';
 

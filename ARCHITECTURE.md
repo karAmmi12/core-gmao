@@ -8,34 +8,68 @@ Le projet suit les principes de la **Clean Architecture** avec une séparation s
 
 ```
 src/
-├── core/                           # Cœur métier (Business Logic)
+├── core/                           # 🔵 Cœur métier (Business Logic)
 │   ├── domain/                     # Couche Domain
-│   │   ├── entities/              # Entités métier (Asset, WorkOrder)
-│   │   ├── repositories/          # Interfaces des repositories
+│   │   ├── entities/              # Entités métier (Asset, WorkOrder...)
+│   │   ├── repositories/          # Interfaces des repositories (contrats)
 │   │   └── interfaces/            # Interfaces communes
 │   ├── application/                # Couche Application
-│   │   ├── use-cases/             # Cas d'utilisation
+│   │   ├── use-cases/             # Cas d'utilisation métier
 │   │   ├── services/              # Services d'orchestration
 │   │   ├── dto/                   # Data Transfer Objects
 │   │   ├── validation/            # Schémas de validation Zod
 │   │   └── types/                 # Types TypeScript
 │   └── infrastructure/             # Couche Infrastructure
 │       ├── repositories/          # Implémentations Prisma
-│       └── di/                    # Dependency Injection
-├── presentation/                   # Couche Présentation
-│   └── components/
-│       ├── ui/                    # Composants UI réutilisables
-│       ├── features/              # Composants métier
-│       ├── forms/                 # Formulaires
-│       ├── layouts/               # Layouts
-│       └── common/                # Composants communs (Loading, Error)
-├── app/                            # Next.js App Router
-│   ├── page.tsx                   # Page Dashboard
+│       └── di/                    # Dependency Injection Container
+│
+├── presentation/                   # 🟢 Couche Présentation (UI)
+│   ├── components/                # Composants React
+│   │   ├── ui/                   # Composants atomiques (Button, Card, Input...)
+│   │   ├── composite/            # Composants composites (DataTable, Tabs...)
+│   │   ├── features/             # Composants métier par domaine
+│   │   ├── forms/                # Composants de formulaires
+│   │   ├── common/               # Composants communs (Loading, ErrorBoundary)
+│   │   ├── layouts/              # Layouts (MainLayout)
+│   │   └── index.ts              # Export centralisé
+│   ├── views/                     # Vues de pages (composants clients)
+│   │   ├── dashboard/            # DashboardContent.tsx
+│   │   ├── hierarchy/            # HierarchyContent.tsx
+│   │   ├── technicians/          # TechniciansContent.tsx
+│   │   ├── inventory/            # InventoryContent.tsx
+│   │   ├── maintenance/          # MaintenanceContent.tsx
+│   │   └── reporting/            # ReportingContent.tsx
+│   ├── hooks/                     # Custom React hooks
+│   ├── styles/                    # Design System (design-system.ts)
+│   └── contexts/                  # Contextes React
+│
+├── shared/                         # 🟡 Utilitaires partagés
+│   └── lib/                       # Librairies (prisma.ts)
+│
+├── app/                            # 🔴 Next.js App Router (Routing only)
+│   ├── page.tsx                   # Route Dashboard
 │   ├── actions.ts                 # Server Actions
-│   └── assets/[id]/page.tsx       # Page détails Asset
+│   ├── layout.tsx                 # Layout racine
+│   └── [feature]/                 # Routes par feature
+│       └── page.tsx               # RSC qui charge les données
+│
 └── config/                         # Configuration
     └── app.config.ts              # Configuration centralisée
 ```
+
+## 🎯 Principes de la Clean Architecture
+
+### Règle de dépendance
+Les dépendances pointent **vers l'intérieur** :
+- `app/` → `presentation/` → `core/application/` → `core/domain/`
+- `core/infrastructure/` → `core/domain/` (implémente les interfaces)
+
+### Séparation des responsabilités
+- **Domain** : Règles métier pures, aucune dépendance externe
+- **Application** : Orchestration, cas d'utilisation
+- **Infrastructure** : Accès aux données (Prisma)
+- **Presentation** : UI React, composants
+- **App** : Routing Next.js uniquement
 
 ## 📦 Ajout d'une nouvelle fonctionnalité
 

@@ -1,4 +1,4 @@
-import { Card } from '@/presentation/components/ui/Card';
+import { Card } from '@/components';
 
 /**
  * Composant de chargement pour les sections

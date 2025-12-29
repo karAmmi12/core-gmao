@@ -1,8 +1,8 @@
 import { AssetService } from "@/core/application/services/AssetService";
 import { notFound } from "next/navigation";
-import { MainLayout } from "@/presentation/components/layouts/MainLayout";
-import { AssetDetailCard } from "@/presentation/components/features/assets/AssetDetailCard";
-import { AssetInterventionHistory } from "@/presentation/components/features/assets/AssetInterventionHistory";
+import { MainLayout } from '@/components';
+import { AssetDetailCard } from '@/components/features/assets/AssetDetailCard';
+import { AssetInterventionHistory } from '@/components/features/assets/AssetInterventionHistory';
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 

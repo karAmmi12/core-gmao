@@ -19,7 +19,17 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/core/*": ["./src/core/*"],
+      "@/presentation/*": ["./src/presentation/*"],
+      "@/shared/*": ["./src/shared/*"],
+      "@/components": ["./src/presentation/components"],
+      "@/components/*": ["./src/presentation/components/*"],
+      "@/hooks": ["./src/presentation/hooks"],
+      "@/hooks/*": ["./src/presentation/hooks/*"],
+      "@/views/*": ["./src/presentation/views/*"],
+      "@/styles/*": ["./src/presentation/styles/*"],
+      "@/lib/*": ["./src/shared/lib/*"]
     }
   },
   "include": [

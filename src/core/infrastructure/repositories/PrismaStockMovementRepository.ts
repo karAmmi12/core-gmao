@@ -1,6 +1,6 @@
 import { StockMovementRepository } from '@/core/domain/repositories/StockMovementRepository';
 import { StockMovement, MovementType } from '@/core/domain/entities/StockMovement';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/shared/lib/prisma';
 
 export class PrismaStockMovementRepository implements StockMovementRepository {
   async save(movement: StockMovement): Promise<void> {

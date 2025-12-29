@@ -6,4 +6,5 @@ export type ActionState<T = Record<string, string[]>> = {
   success?: boolean;
   error?: string;
   errors?: T;
+  data?: { id?: string; [key: string]: any };
 } | null;

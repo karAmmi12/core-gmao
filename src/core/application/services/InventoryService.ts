@@ -70,6 +70,7 @@ export class InventoryService {
     const parts = await this.partRepo.findAll();
 
     const totalParts = parts.length;
+    const totalUnits = parts.reduce((sum, p) => sum + p.quantityInStock, 0);
     const lowStockParts = parts.filter((p) => p.isLowStock()).length;
     const outOfStockParts = parts.filter((p) => !p.hasStock()).length;
     const totalValue = parts.reduce(
@@ -79,6 +80,7 @@ export class InventoryService {
 
     return {
       totalParts,
+      totalUnits,
       lowStockParts,
       outOfStockParts,
       totalValue: Math.round(totalValue * 100) / 100,

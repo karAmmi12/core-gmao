@@ -4,12 +4,14 @@ import { PrismaTechnicianRepository } from "@/core/infrastructure/repositories/P
 import { PrismaPartRepository } from "@/core/infrastructure/repositories/PrismaPartRepository";
 import { PrismaStockMovementRepository } from "@/core/infrastructure/repositories/PrismaStockMovementRepository";
 import { PrismaMaintenanceScheduleRepository } from "@/core/infrastructure/repositories/PrismaMaintenanceScheduleRepository";
+import { PrismaConfigurationRepository } from "@/core/infrastructure/repositories/PrismaConfigurationRepository";
 import { AssetRepository } from "@/core/domain/repositories/AssetRepository";
 import { WorkOrderRepository } from "@/core/domain/repositories/WorkOrderRepository";
 import { TechnicianRepository } from "@/core/domain/repositories/TechnicianRepository";
 import { PartRepository } from "@/core/domain/repositories/PartRepository";
 import { StockMovementRepository } from "@/core/domain/repositories/StockMovementRepository";
 import { MaintenanceScheduleRepository } from "@/core/domain/repositories/MaintenanceScheduleRepository";
+import { ConfigurationRepository } from "@/core/domain/repositories/ConfigurationRepository";
 import { InventoryService } from "@/core/application/services/InventoryService";
 import { MaintenanceScheduleService } from "@/core/application/services/MaintenanceScheduleService";
 
@@ -21,6 +23,7 @@ class DIContainer {
   private static partRepo: PartRepository | null = null;
   private static stockMovementRepo: StockMovementRepository | null = null;
   private static maintenanceScheduleRepo: MaintenanceScheduleRepository | null = null;
+  private static configurationRepo: ConfigurationRepository | null = null;
   private static inventoryService: InventoryService | null = null;
   private static maintenanceScheduleService: MaintenanceScheduleService | null = null;
 
@@ -66,6 +69,13 @@ class DIContainer {
     return this.maintenanceScheduleRepo;
   }
 
+  static getConfigurationRepository(): ConfigurationRepository {
+    if (!this.configurationRepo) {
+      this.configurationRepo = new PrismaConfigurationRepository();
+    }
+    return this.configurationRepo;
+  }
+
   // Utile pour les tests : permet d'injecter des mocks
   static setAssetRepository(repo: AssetRepository) {
     this.assetRepo = repo;
@@ -89,6 +99,10 @@ class DIContainer {
 
   static setMaintenanceScheduleRepository(repo: MaintenanceScheduleRepository) {
     this.maintenanceScheduleRepo = repo;
+  }
+
+  static setConfigurationRepository(repo: ConfigurationRepository) {
+    this.configurationRepo = repo;
   }
 
   static getInventoryService(): InventoryService {
@@ -117,6 +131,7 @@ class DIContainer {
     this.partRepo = null;
     this.stockMovementRepo = null;
     this.maintenanceScheduleRepo = null;
+    this.configurationRepo = null;
     this.inventoryService = null;
     this.maintenanceScheduleService = null;
   }

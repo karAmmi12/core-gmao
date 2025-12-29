@@ -3,16 +3,17 @@
 import { createAssetAction } from "@/app/actions";
 import { useActionState } from "react";
 import { Box } from "lucide-react";
-import { Card, CardHeader } from "@/presentation/components/ui/Card";
-import { Input } from "@/presentation/components/ui/Input";
-import { Button } from "@/presentation/components/ui/Button";
+import { Card, CardHeader, Input, Button } from '@/components';
 import { AssetDTO } from "@/core/application/dto/AssetDTO";
+import type { ConfigurationItemDTO } from '@/core/application/dto/ConfigurationDTO';
+import { LAYOUT_STYLES } from '@/styles/design-system';
 
 interface AssetFormProps {
   assets?: AssetDTO[];
+  assetTypes: ConfigurationItemDTO[];
 }
 
-export function AssetForm({ assets = [] }: AssetFormProps) {
+export function AssetForm({ assets = [], assetTypes }: AssetFormProps) {
   const [state, formAction, isPending] = useActionState(createAssetAction, null);
 
   return (
@@ -63,11 +64,11 @@ export function AssetForm({ assets = [] }: AssetFormProps) {
             className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           >
             <option value="">-- Sélectionner --</option>
-            <option value="SITE">Site</option>
-            <option value="BUILDING">Bâtiment</option>
-            <option value="LINE">Ligne de production</option>
-            <option value="MACHINE">Machine</option>
-            <option value="COMPONENT">Composant</option>
+            {assetTypes.map((type) => (
+              <option key={type.id} value={type.code}>
+                {type.label}
+              </option>
+            ))}
           </select>
           {state?.errors?.assetType?.[0] && (
             <p className="text-danger-600 text-sm mt-1">{state.errors.assetType[0]}</p>
@@ -97,7 +98,7 @@ export function AssetForm({ assets = [] }: AssetFormProps) {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={LAYOUT_STYLES.gridResponsive2}>
           <Input
             label="Localisation (optionnel)"
             name="location"
@@ -132,7 +133,7 @@ export function AssetForm({ assets = [] }: AssetFormProps) {
           </div>
         )}
 
-        <Button type="submit" isLoading={isPending} className="w-full">
+        <Button type="submit" loading={isPending} className="w-full">
           ➕ Ajouter au parc
         </Button>
       </form>

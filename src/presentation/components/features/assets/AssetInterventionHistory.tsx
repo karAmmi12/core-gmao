@@ -2,10 +2,10 @@
 
 import { WorkOrderDTO } from '@/core/application/dto/WorkOrderDTO';
 import { completeWorkOrderAction } from '@/app/actions';
-import { Card, CardHeader } from '@/presentation/components/ui/Card';
+import { Card, CardHeader } from '@/components';
 import { CheckCircle, AlertTriangle, Clock, Package, ChevronDown, ChevronUp } from 'lucide-react';
-import { Badge } from '@/presentation/components/ui/Badge';
-import { Button } from '@/presentation/components/ui/Button';
+import { Badge } from '@/components';
+import { Button } from '@/components';
 import { useState } from 'react';
 
 interface AssetInterventionHistoryProps {

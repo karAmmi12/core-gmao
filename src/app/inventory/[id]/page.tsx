@@ -2,9 +2,9 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Package, AlertTriangle, DollarSign, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
 import DIContainer from '@/core/infrastructure/di/DIContainer';
-import { Card } from '@/presentation/components/ui/Card';
-import { Badge } from '@/presentation/components/ui/Badge';
-import { Button } from '@/presentation/components/ui/Button';
+import { Card } from '@/components';
+import { Badge } from '@/components';
+import { Button } from '@/components';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +26,7 @@ export default async function PartDetailPage({ params }: PageProps) {
 
   // Calculer le statut du stock
   const stockStatus = part.quantityInStock === 0 
-    ? { label: 'Rupture', variant: 'error' as const }
+    ? { label: 'Rupture', variant: 'danger' as const }
     : part.quantityInStock <= part.minStockLevel
     ? { label: 'Stock bas', variant: 'warning' as const }
     : { label: 'OK', variant: 'success' as const };
@@ -169,7 +169,7 @@ export default async function PartDetailPage({ params }: PageProps) {
                           ) : (
                             <>
                               <TrendingDown className="w-4 h-4 text-red-500" />
-                              <Badge variant="error">Sortie</Badge>
+                              <Badge variant="danger">Sortie</Badge>
                             </>
                           )}
                         </div>

@@ -1,4 +1,4 @@
-import { Card } from '@/presentation/components/ui/Card';
+import { Card } from '@/components';
 import { Activity } from 'lucide-react';
 
 interface DashboardPendingOrdersProps {
@@ -8,7 +8,7 @@ interface DashboardPendingOrdersProps {
 
 export const DashboardPendingOrders = ({ pendingCount, availabilityRate }: DashboardPendingOrdersProps) => {
   return (
-    <Card variant="gradient" gradient="bg-gradient-to-br from-primary-50 to-primary-100 border-primary-200">
+    <Card className="bg-gradient-to-br from-primary-50 to-primary-100 border-primary-200">
       <div className="flex items-center gap-2 mb-3">
         <Activity className="text-primary-600" size={20} />
         <h3 className="text-heading">Interventions en cours</h3>

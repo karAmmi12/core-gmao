@@ -1,29 +1,22 @@
-import { AssetService } from "@/core/application/services/AssetService";
-import { MainLayout } from "@/presentation/components/layouts/MainLayout";
-import { AssetTreeView } from "@/presentation/components/features/assets/AssetTreeView";
+/**
+ * Hiérarchie des Équipements - Version refactorisée
+ */
+
 import { GetAssetTreeUseCase } from "@/core/application/use-cases/GetAssetTreeUseCase";
 import DIContainer from "@/core/infrastructure/di/DIContainer";
+import { MainLayout } from "@/components/layouts/MainLayout";
+import { HierarchyContent } from "@/views/hierarchy/HierarchyContent";
 
 export const dynamic = 'force-dynamic';
 
-export default async function AssetTreePage() {
-  // Récupérer l'arborescence complète
+export default async function HierarchyPage() {
   const assetRepo = DIContainer.getAssetRepository();
   const getTreeUseCase = new GetAssetTreeUseCase(assetRepo);
   const tree = await getTreeUseCase.execute();
 
   return (
     <MainLayout>
-      <div className="container-page">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-neutral-900">Arborescence du Parc Machine</h1>
-          <p className="text-neutral-600 mt-2">
-            Vue hiérarchique complète : Site → Bâtiments → Lignes → Machines → Composants
-          </p>
-        </div>
-
-        <AssetTreeView tree={tree} />
-      </div>
+      <HierarchyContent tree={tree} />
     </MainLayout>
   );
 }

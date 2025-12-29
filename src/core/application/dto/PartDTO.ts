@@ -32,6 +32,7 @@ export interface StockMovementDTO {
 
 export interface PartStatsDTO {
   totalParts: number;
+  totalUnits: number;
   lowStockParts: number;
   outOfStockParts: number;
   totalValue: number;

@@ -1,6 +1,6 @@
 import { MaintenanceSchedule, MaintenanceFrequency } from '@/core/domain/entities/MaintenanceSchedule';
 import { MaintenanceScheduleRepository } from '@/core/domain/repositories/MaintenanceScheduleRepository';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/shared/lib/prisma';
 
 export class PrismaMaintenanceScheduleRepository implements MaintenanceScheduleRepository {
   async save(schedule: MaintenanceSchedule): Promise<void> {

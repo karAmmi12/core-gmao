@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, TrendingUp, TrendingDown } from 'lucide-react';
 import { addStockMovementAction } from '@/app/actions';
-import { Button } from '@/presentation/components/ui/Button';
-import { Card } from '@/presentation/components/ui/Card';
-import { Input } from '@/presentation/components/ui/Input';
+import { Button } from '@/components';
+import { Card } from '@/components';
+import { Input } from '@/components';
 import { useState } from 'react';
 
 interface PageProps {

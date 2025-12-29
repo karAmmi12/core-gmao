@@ -11,25 +11,10 @@ export const appConfig = {
   api: {
     timeout: 30000, // 30 secondes
   },
-  pagination: {
-    defaultPageSize: 10,
-    maxPageSize: 100,
-  },
-  validation: {
-    asset: {
-      nameMinLength: 3,
-      nameMaxLength: 50,
-      serialNumberMinLength: 2,
-    },
-    workOrder: {
-      titleMinLength: 5,
-      titleMaxLength: 100,
-    },
-  },
   features: {
     enableNotifications: true,
     enableExport: true,
-    enableAdvancedFilters: false, // Feature flag pour fonctionnalités futures
+    enableAdvancedFilters: false,
   },
 } as const;
 

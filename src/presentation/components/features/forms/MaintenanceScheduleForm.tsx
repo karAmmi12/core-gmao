@@ -2,12 +2,13 @@
 
 import { useActionState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Input } from '@/presentation/components/ui/Input';
-import { Button } from '@/presentation/components/ui/Button';
-import { Card } from '@/presentation/components/ui/Card';
+import { Input } from '@/components';
+import { Button } from '@/components';
+import { Card } from '@/components';
 import { ActionState } from '@/core/application/types/ActionState';
 import { AssetDTO } from '@/core/application/dto/AssetDTO';
 import { TechnicianDTO } from '@/core/application/dto/TechnicianDTO';
+import { LAYOUT_STYLES, cn } from '@/styles/design-system';
 
 interface MaintenanceScheduleFormProps {
   assets: AssetDTO[];
@@ -83,7 +84,7 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className={LAYOUT_STYLES.grid2}>
             <div>
               <label htmlFor="frequency" className="block text-sm font-medium text-gray-700 mb-1">
                 Fréquence *
@@ -143,7 +144,7 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className={LAYOUT_STYLES.grid2}>
             <div>
               <label htmlFor="estimatedDuration" className="block text-sm font-medium text-gray-700 mb-1">
                 Durée estimée (heures)
@@ -198,7 +199,7 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
+          <div className={cn(LAYOUT_STYLES.flexRow, 'pt-4')}>
             <Button type="submit" disabled={isPending}>
               {isPending ? 'Création...' : 'Créer le planning'}
             </Button>

@@ -68,3 +68,8 @@ test-*.mjs
 test-*.js
 fix-*.mjs
 final-test.mjs
+
+# Documentation de développement (garder seulement README.md)
+PHASE*.md
+ARCHITECTURE.md
+CODE_AUDIT_REPORT.md

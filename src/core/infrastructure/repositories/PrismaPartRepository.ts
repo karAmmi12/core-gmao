@@ -1,6 +1,6 @@
 import { PartRepository } from '@/core/domain/repositories/PartRepository';
 import { Part, PartCategory } from '@/core/domain/entities/Part';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/shared/lib/prisma';
 
 export class PrismaPartRepository implements PartRepository {
   async save(part: Part): Promise<void> {

@@ -40,7 +40,7 @@ export async function createAssetAction(
 
   if (!validation.success) {
     const errors = validation.error.flatten().fieldErrors;
-    const firstError = validation.error.errors?.[0];
+    const firstError = validation.error.issues?.[0];
     return {
       error: firstError?.message || "Erreur de validation",
       errors,
@@ -109,7 +109,7 @@ export async function createWorkOrderAction(
 
   if (!validation.success) {
     const errors = validation.error.flatten().fieldErrors;
-    const firstError = validation.error.errors?.[0];
+    const firstError = validation.error.issues?.[0];
     return {
       error: firstError?.message || "Erreur de validation",
       errors,
@@ -217,7 +217,7 @@ export async function createPartAction(
   
   const validationResult = createPartSchema.safeParse(rawData);
   if (!validationResult.success) {
-    return { error: validationResult.error.errors[0].message };
+    return { error: validationResult.error.issues[0].message };
   }
 
   const { CreatePartUseCase } = await import("@/core/application/use-cases/CreatePartUseCase");
@@ -249,7 +249,7 @@ export async function addStockMovementAction(
   
   const validationResult = addStockMovementSchema.safeParse(rawData);
   if (!validationResult.success) {
-    return { error: validationResult.error.errors[0].message };
+    return { error: validationResult.error.issues[0].message };
   }
 
   const { AddStockMovementUseCase } = await import("@/core/application/use-cases/AddStockMovementUseCase");
@@ -296,7 +296,7 @@ export async function createMaintenanceScheduleAction(
   const validationResult = MaintenanceScheduleCreateSchema.safeParse(cleanData);
   if (!validationResult.success) {
     const errors = validationResult.error.flatten().fieldErrors;
-    const firstError = validationResult.error.errors?.[0];
+    const firstError = validationResult.error.issues?.[0];
     return {
       error: firstError?.message || "Erreur de validation",
       errors,
@@ -329,6 +329,302 @@ export async function executeMaintenanceScheduleAction(
     await useCase.execute(scheduleId);
     revalidatePath("/maintenance");
     revalidatePath("/");
+    return { success: true };
+  } catch (e: any) {
+    return { error: e.message };
+  }
+}
+
+// =============================================================================
+// TECHNICIAN ACTIONS
+// =============================================================================
+
+import { CreateTechnicianSchema, UpdateTechnicianSchema } from "@/core/application/validation/TechnicianSchemas";
+import { CreateTechnicianUseCase } from "@/core/application/use-cases/CreateTechnicianUseCase";
+import { UpdateTechnicianUseCase } from "@/core/application/use-cases/UpdateTechnicianUseCase";
+import { DeleteTechnicianUseCase } from "@/core/application/use-cases/DeleteTechnicianUseCase";
+import { TechnicianSkill } from "@/core/domain/entities/Technician";
+
+export async function createTechnicianAction(
+  previousState: ActionState | null,
+  formData: FormData
+): Promise<ActionState> {
+  const rawSkills = formData.getAll("skills") as string[];
+  
+  const rawData = {
+    name: formData.get("name") as string,
+    email: formData.get("email") as string,
+    phone: formData.get("phone") as string || undefined,
+    skills: rawSkills,
+  };
+
+  const validation = CreateTechnicianSchema.safeParse(rawData);
+
+  if (!validation.success) {
+    const errors = validation.error.flatten().fieldErrors;
+    const firstError = validation.error.issues?.[0];
+    return {
+      error: firstError?.message || "Erreur de validation",
+      errors,
+    };
+  }
+
+  const technicianRepo = DIContainer.getTechnicianRepository();
+  const useCase = new CreateTechnicianUseCase(technicianRepo);
+
+  try {
+    await useCase.execute({
+      name: validation.data.name,
+      email: validation.data.email,
+      phone: validation.data.phone || undefined,
+      skills: validation.data.skills as TechnicianSkill[],
+    });
+    revalidatePath("/technicians");
+    return { success: true };
+  } catch (e: any) {
+    return { error: e.message };
+  }
+}
+
+export async function updateTechnicianAction(
+  previousState: ActionState | null,
+  formData: FormData
+): Promise<ActionState> {
+  const id = formData.get("id") as string;
+  const rawSkills = formData.getAll("skills") as string[];
+  
+  const rawData = {
+    name: formData.get("name") as string,
+    email: formData.get("email") as string,
+    phone: formData.get("phone") as string || undefined,
+    skills: rawSkills,
+    isActive: formData.get("isActive") === "true",
+  };
+
+  const validation = UpdateTechnicianSchema.safeParse(rawData);
+
+  if (!validation.success) {
+    const errors = validation.error.flatten().fieldErrors;
+    const firstError = validation.error.issues?.[0];
+    return {
+      error: firstError?.message || "Erreur de validation",
+      errors,
+    };
+  }
+
+  const technicianRepo = DIContainer.getTechnicianRepository();
+  const useCase = new UpdateTechnicianUseCase(technicianRepo);
+
+  try {
+    await useCase.execute({
+      id,
+      name: validation.data.name,
+      email: validation.data.email,
+      phone: validation.data.phone || undefined,
+      skills: validation.data.skills as TechnicianSkill[],
+      isActive: validation.data.isActive,
+    });
+    revalidatePath("/technicians");
+    revalidatePath(`/technicians/${id}`);
+    return { success: true };
+  } catch (e: any) {
+    return { error: e.message };
+  }
+}
+
+export async function deleteTechnicianAction(id: string): Promise<ActionState> {
+  const technicianRepo = DIContainer.getTechnicianRepository();
+  const useCase = new DeleteTechnicianUseCase(technicianRepo);
+
+  try {
+    await useCase.execute(id);
+    revalidatePath("/technicians");
+    return { success: true };
+  } catch (e: any) {
+    return { error: e.message };
+  }
+}
+
+// ========================
+// CONFIGURATION ACTIONS
+// ========================
+
+import { CreateCategoryUseCase } from "@/core/application/use-cases/configuration/CreateCategoryUseCase";
+import { CreateItemUseCase } from "@/core/application/use-cases/configuration/CreateItemUseCase";
+import { UpdateItemUseCase } from "@/core/application/use-cases/configuration/UpdateItemUseCase";
+import { DeleteItemUseCase } from "@/core/application/use-cases/configuration/DeleteItemUseCase";
+import {
+  CreateCategorySchema,
+  CreateItemSchema,
+  UpdateItemSchema,
+} from "@/core/application/validation/ConfigurationSchemas";
+
+export async function createCategoryAction(
+  previousState: ActionState | null,
+  formData: FormData
+): Promise<ActionState> {
+  const rawData = {
+    code: formData.get("code") as string,
+    name: formData.get("name") as string,
+    description: formData.get("description") as string,
+    sortOrder: formData.get("sortOrder") as string,
+  };
+
+  const cleanData = {
+    code: rawData.code,
+    name: rawData.name,
+    ...(rawData.description && rawData.description !== "" ? { description: rawData.description } : {}),
+    ...(rawData.sortOrder ? { sortOrder: parseInt(rawData.sortOrder, 10) } : {}),
+  };
+
+  const validation = CreateCategorySchema.safeParse(cleanData);
+
+  if (!validation.success) {
+    const errors = validation.error.flatten().fieldErrors;
+    const firstError = validation.error.issues?.[0];
+    return {
+      error: firstError?.message || "Erreur de validation",
+      errors,
+    };
+  }
+
+  const configRepo = DIContainer.getConfigurationRepository();
+  const useCase = new CreateCategoryUseCase(configRepo);
+
+  try {
+    await useCase.execute(validation.data);
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (e: any) {
+    return { error: e.message };
+  }
+}
+
+export async function createItemAction(
+  previousState: ActionState | null,
+  formData: FormData
+): Promise<ActionState> {
+  const rawData = {
+    categoryId: formData.get("categoryId") as string,
+    code: formData.get("code") as string,
+    label: formData.get("label") as string,
+    description: formData.get("description") as string,
+    color: formData.get("color") as string,
+    icon: formData.get("icon") as string,
+    isDefault: formData.get("isDefault") === "true",
+    sortOrder: formData.get("sortOrder") as string,
+  };
+
+  const cleanData: any = {
+    categoryId: rawData.categoryId,
+    code: rawData.code,
+    label: rawData.label,
+  };
+
+  if (rawData.description && rawData.description !== "") {
+    cleanData.description = rawData.description;
+  }
+  if (rawData.color && rawData.color !== "") {
+    cleanData.color = rawData.color;
+  }
+  if (rawData.icon && rawData.icon !== "") {
+    cleanData.icon = rawData.icon;
+  }
+  if (rawData.isDefault) {
+    cleanData.isDefault = true;
+  }
+  if (rawData.sortOrder) {
+    cleanData.sortOrder = parseInt(rawData.sortOrder, 10);
+  }
+
+  const validation = CreateItemSchema.safeParse(cleanData);
+
+  if (!validation.success) {
+    const errors = validation.error.flatten().fieldErrors;
+    const firstError = validation.error.issues?.[0];
+    return {
+      error: firstError?.message || "Erreur de validation",
+      errors,
+    };
+  }
+
+  const configRepo = DIContainer.getConfigurationRepository();
+  const useCase = new CreateItemUseCase(configRepo);
+
+  try {
+    await useCase.execute(validation.data);
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (e: any) {
+    return { error: e.message };
+  }
+}
+
+export async function updateItemAction(
+  itemId: string,
+  previousState: ActionState | null,
+  formData: FormData
+): Promise<ActionState> {
+  const rawData = {
+    label: formData.get("label") as string,
+    description: formData.get("description") as string,
+    color: formData.get("color") as string,
+    icon: formData.get("icon") as string,
+    sortOrder: formData.get("sortOrder") as string,
+  };
+
+  const cleanData: any = {};
+
+  if (rawData.label && rawData.label !== "") {
+    cleanData.label = rawData.label;
+  }
+  if (rawData.description !== null) {
+    cleanData.description = rawData.description || undefined;
+  }
+  if (rawData.color && rawData.color !== "") {
+    cleanData.color = rawData.color;
+  }
+  if (rawData.icon !== null) {
+    cleanData.icon = rawData.icon || undefined;
+  }
+  // Checkboxes: toujours inclure la valeur (true si présente, false sinon)
+  cleanData.isDefault = formData.has("isDefault");
+  cleanData.isActive = formData.has("isActive");
+  
+  if (rawData.sortOrder) {
+    cleanData.sortOrder = parseInt(rawData.sortOrder, 10);
+  }
+
+  const validation = UpdateItemSchema.safeParse(cleanData);
+
+  if (!validation.success) {
+    const errors = validation.error.flatten().fieldErrors;
+    const firstError = validation.error.issues?.[0];
+    return {
+      error: firstError?.message || "Erreur de validation",
+      errors,
+    };
+  }
+
+  const configRepo = DIContainer.getConfigurationRepository();
+  const useCase = new UpdateItemUseCase(configRepo);
+
+  try {
+    await useCase.execute(itemId, validation.data);
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (e: any) {
+    return { error: e.message };
+  }
+}
+
+export async function deleteItemAction(itemId: string): Promise<ActionState> {
+  const configRepo = DIContainer.getConfigurationRepository();
+  const useCase = new DeleteItemUseCase(configRepo);
+
+  try {
+    await useCase.execute(itemId);
+    revalidatePath("/settings");
     return { success: true };
   } catch (e: any) {
     return { error: e.message };

@@ -2,12 +2,12 @@ import { Technician, TechnicianSkill } from '@/core/domain/entities/Technician';
 
 export interface TechnicianDTO {
   id: string;
-  firstName: string;
-  lastName: string;
-  fullName: string;
+  name: string;
+  fullName: string; // Alias for name (compatibilité)
   email: string;
   phone?: string;
   skills: TechnicianSkill[];
+  specialization: string; // Primary skill
   isActive: boolean;
 }
 
@@ -15,12 +15,12 @@ export class TechnicianMapper {
   static toDTO(technician: Technician): TechnicianDTO {
     return {
       id: technician.id,
-      firstName: technician.firstName,
-      lastName: technician.lastName,
-      fullName: `${technician.firstName} ${technician.lastName}`,
+      name: technician.name,
+      fullName: technician.name,
       email: technician.email,
       phone: technician.phone,
       skills: technician.skills,
+      specialization: technician.skills[0] || 'Général',
       isActive: technician.isActive,
     };
   }
