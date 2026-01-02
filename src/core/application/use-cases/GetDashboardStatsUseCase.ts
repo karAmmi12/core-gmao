@@ -10,6 +10,14 @@ export class GetDashboardStatsUseCase {
   async execute() {
     const assetStats = await this.assetRepo.getStats();
     const pendingOrders = await this.orderRepo.countPending();
+    
+    // Stats par type de maintenance
+    const ordersByType = await this.orderRepo.countByType?.() || {
+      CORRECTIVE: 0,
+      PREVENTIVE: 0,
+      PREDICTIVE: 0,
+      CONDITIONAL: 0
+    };
 
     // On calcule un "Taux de disponibilité" fictif pour le style
     const availabilityRate = assetStats.total > 0 
@@ -19,7 +27,8 @@ export class GetDashboardStatsUseCase {
     return {
       assets: assetStats,
       pendingOrders,
-      availabilityRate
+      availabilityRate,
+      ordersByType
     };
   }
 }

@@ -25,7 +25,7 @@ export interface StockMovementDTO {
   quantity: number;
   reason?: string;
   reference?: string;
-  stockAfter: number;
+  stockAfter?: number; // Calculé dans InventoryService, pas dans le mapper
   createdAt: string;
   createdBy?: string;
 }

@@ -90,7 +90,7 @@ export const AssetDetailCard = ({ asset }: AssetDetailCardProps) => {
               type="submit"
               variant="primary"
               size="sm"
-              isLoading={isChangingStatus}
+              loading={isChangingStatus}
               disabled={selectedStatus === asset.status}
             >
               Mettre à jour

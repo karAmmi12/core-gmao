@@ -13,31 +13,47 @@ export class ExecuteMaintenanceScheduleUseCase {
     // Find the schedule
     const schedule = await this.maintenanceScheduleRepository.findById(scheduleId);
     if (!schedule) {
-      throw new Error('Maintenance schedule not found');
+      throw new Error('Planning de maintenance non trouvé');
     }
 
     if (!schedule.isActive) {
-      throw new Error('Maintenance schedule is not active');
+      throw new Error('Ce planning de maintenance n\'est pas actif');
     }
 
     const now = executedAt || new Date();
+    
+    // Déterminer le type d'intervention selon le type de déclenchement
+    const workOrderType = schedule.maintenanceType; // PREVENTIVE ou PREDICTIVE
+    const titlePrefix = schedule.triggerType === 'TIME_BASED' 
+      ? '[Maintenance Préventive]' 
+      : '[Maintenance Prédictive]';
+    
+    // Description enrichie pour les maintenances prédictives
+    let description = schedule.description || '';
+    if (schedule.triggerType === 'THRESHOLD_BASED') {
+      description = `${description}\n\nSeuil atteint: ${schedule.currentValue}/${schedule.thresholdValue} ${schedule.thresholdUnit || ''} (${schedule.thresholdMetric})`;
+    }
 
     // Create a work order from the schedule
-    const workOrder = WorkOrder.create({
-      assetId: schedule.assetId,
-      title: `[Maintenance Préventive] ${schedule.title}`,
-      description: schedule.description || `Intervention de maintenance préventive`,
-      type: 'PREVENTIVE',
-      priority: schedule.priority,
-      status: 'PENDING',
-      scheduledDate: now,
-      estimatedDuration: schedule.estimatedDuration,
-      assignedToId: schedule.assignedToId,
-    });
+    const workOrder = WorkOrder.create(
+      `${titlePrefix} ${schedule.title}`,
+      schedule.priority,
+      schedule.assetId,
+      description.trim() || `Intervention de maintenance ${workOrderType.toLowerCase()}`,
+      {
+        scheduledAt: now,
+        estimatedDuration: schedule.estimatedDuration,
+        assignedToId: schedule.assignedToId,
+      },
+      workOrderType,
+      schedule.id // Lien vers le MaintenanceSchedule
+    );
 
     await this.workOrderRepository.save(workOrder);
 
-    // Mark the schedule as executed and calculate next due date
+    // Mark the schedule as executed
+    // - Pour TIME_BASED: calcule la prochaine date
+    // - Pour THRESHOLD_BASED: remet le compteur à zéro
     const updatedSchedule = schedule.markAsExecuted(now);
     await this.maintenanceScheduleRepository.update(updatedSchedule);
 

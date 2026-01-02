@@ -3,13 +3,13 @@
  */
 
 import { MainLayout, PageHeader, StatsGrid, StatCard, Button } from '@/components';
-import { AnalyticsService } from '@/core/application/services/AnalyticsService';
+import DIContainer from '@/core/infrastructure/di/DIContainer';
 import { AnalyticsContent } from '@/views/analytics/AnalyticsContent';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AnalyticsPage() {
-  const analyticsService = new AnalyticsService();
+  const analyticsService = DIContainer.getAnalyticsService();
 
   const [
     kpis,

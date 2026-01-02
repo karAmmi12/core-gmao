@@ -13,18 +13,27 @@ export class CreateMaintenanceScheduleUseCase {
     // Verify asset exists
     const asset = await this.assetRepository.findById(input.assetId);
     if (!asset) {
-      throw new Error('Asset not found');
+      throw new Error('Équipement non trouvé');
     }
 
-    // Create maintenance schedule
+    // Create maintenance schedule with all fields
     const schedule = MaintenanceSchedule.create({
       assetId: input.assetId,
       title: input.title,
       description: input.description,
+      maintenanceType: input.maintenanceType,
+      triggerType: input.triggerType,
+      // Time-based fields
       frequency: input.frequency,
       intervalValue: input.intervalValue,
       nextDueDate: input.nextDueDate,
-      estimatedDuration: input.estimatedDuration,
+      // Threshold-based fields
+      thresholdMetric: input.thresholdMetric,
+      thresholdValue: input.thresholdValue,
+      thresholdUnit: input.thresholdUnit,
+      currentValue: input.currentValue,
+      // Common fields
+      estimatedDuration: input.estimatedDuration as number | undefined,
       assignedToId: input.assignedToId,
       priority: input.priority,
     });

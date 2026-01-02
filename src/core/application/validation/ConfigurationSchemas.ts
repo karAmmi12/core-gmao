@@ -45,7 +45,7 @@ export const CreateItemSchema = z.object({
   icon: z.string().max(50).optional(),
   isDefault: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const UpdateItemSchema = z.object({
@@ -63,7 +63,7 @@ export const UpdateItemSchema = z.object({
   isDefault: z.boolean().optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type CreateCategoryInput = z.infer<typeof CreateCategorySchema>;

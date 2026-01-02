@@ -1,6 +1,56 @@
-import { MaintenanceSchedule, MaintenanceFrequency } from '@/core/domain/entities/MaintenanceSchedule';
+import { MaintenanceSchedule, MaintenanceFrequency, MaintenanceTriggerType, MaintenanceType } from '@/core/domain/entities/MaintenanceSchedule';
 import { MaintenanceScheduleRepository } from '@/core/domain/repositories/MaintenanceScheduleRepository';
 import { prisma } from '@/shared/lib/prisma';
+
+// Type pour les données brutes de Prisma
+type PrismaSchedule = {
+  id: string;
+  assetId: string;
+  title: string;
+  description: string | null;
+  maintenanceType: string;
+  triggerType: string;
+  frequency: string;
+  intervalValue: number;
+  lastExecutedAt: Date | null;
+  nextDueDate: Date;
+  thresholdMetric: string | null;
+  thresholdValue: number | null;
+  thresholdUnit: string | null;
+  currentValue: number | null;
+  estimatedDuration: number | null;
+  assignedToId: string | null;
+  isActive: boolean;
+  priority: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+// Fonction helper pour mapper les données Prisma vers l'entité
+function mapToEntity(raw: PrismaSchedule): MaintenanceSchedule {
+  return MaintenanceSchedule.restore(
+    raw.id,
+    raw.assetId,
+    raw.title,
+    raw.description ?? undefined,
+    (raw.maintenanceType as MaintenanceType) || 'PREVENTIVE',
+    (raw.triggerType as MaintenanceTriggerType) || 'TIME_BASED',
+    raw.frequency as MaintenanceFrequency,
+    raw.intervalValue,
+    raw.lastExecutedAt ?? undefined,
+    raw.nextDueDate,
+    raw.thresholdMetric ?? undefined,
+    raw.thresholdValue ?? undefined,
+    raw.thresholdUnit ?? undefined,
+    raw.currentValue ?? undefined,
+    raw.estimatedDuration ?? undefined,
+    raw.assignedToId ?? undefined,
+    raw.isActive,
+    raw.priority as 'LOW' | 'HIGH',
+    raw.createdAt,
+    raw.updatedAt
+  );
+}
 
 export class PrismaMaintenanceScheduleRepository implements MaintenanceScheduleRepository {
   async save(schedule: MaintenanceSchedule): Promise<void> {
@@ -10,10 +60,16 @@ export class PrismaMaintenanceScheduleRepository implements MaintenanceScheduleR
         assetId: schedule.assetId,
         title: schedule.title,
         description: schedule.description,
+        maintenanceType: schedule.maintenanceType,
+        triggerType: schedule.triggerType,
         frequency: schedule.frequency,
         intervalValue: schedule.intervalValue,
         lastExecutedAt: schedule.lastExecutedAt,
         nextDueDate: schedule.nextDueDate,
+        thresholdMetric: schedule.thresholdMetric,
+        thresholdValue: schedule.thresholdValue,
+        thresholdUnit: schedule.thresholdUnit,
+        currentValue: schedule.currentValue,
         estimatedDuration: schedule.estimatedDuration,
         assignedToId: schedule.assignedToId,
         isActive: schedule.isActive,
@@ -30,23 +86,7 @@ export class PrismaMaintenanceScheduleRepository implements MaintenanceScheduleR
     });
 
     if (!raw) return null;
-
-    return MaintenanceSchedule.restore(
-      raw.id,
-      raw.assetId,
-      raw.title,
-      raw.description ?? undefined,
-      raw.frequency as MaintenanceFrequency,
-      raw.intervalValue,
-      raw.lastExecutedAt ?? undefined,
-      raw.nextDueDate,
-      raw.estimatedDuration ?? undefined,
-      raw.assignedToId ?? undefined,
-      raw.isActive,
-      raw.priority as 'LOW' | 'HIGH',
-      raw.createdAt,
-      raw.updatedAt
-    );
+    return mapToEntity(raw as PrismaSchedule);
   }
 
   async findByAssetId(assetId: string): Promise<MaintenanceSchedule[]> {
@@ -55,79 +95,45 @@ export class PrismaMaintenanceScheduleRepository implements MaintenanceScheduleR
       orderBy: { nextDueDate: 'asc' },
     });
 
-    return schedules.map(raw =>
-      MaintenanceSchedule.restore(
-        raw.id,
-        raw.assetId,
-        raw.title,
-        raw.description ?? undefined,
-        raw.frequency as MaintenanceFrequency,
-        raw.intervalValue,
-        raw.lastExecutedAt ?? undefined,
-        raw.nextDueDate,
-        raw.estimatedDuration ?? undefined,
-        raw.assignedToId ?? undefined,
-        raw.isActive,
-        raw.priority as 'LOW' | 'HIGH',
-        raw.createdAt,
-        raw.updatedAt
-      )
-    );
+    return schedules.map(raw => mapToEntity(raw as PrismaSchedule));
   }
 
   async findDueSchedules(): Promise<MaintenanceSchedule[]> {
+    // Pour TIME_BASED : nextDueDate <= now
+    // Pour THRESHOLD_BASED : currentValue >= thresholdValue
     const now = new Date();
     const schedules = await prisma.maintenanceSchedule.findMany({
       where: {
         isActive: true,
-        nextDueDate: { lte: now },
+        OR: [
+          // Time-based schedules qui sont en retard
+          {
+            triggerType: 'TIME_BASED',
+            nextDueDate: { lte: now },
+          },
+          // Threshold-based schedules où le seuil est atteint
+          // Note: Cette logique est vérifiée en code car Prisma ne supporte pas
+          // facilement la comparaison de deux colonnes
+        ],
       },
       orderBy: { nextDueDate: 'asc' },
     });
 
-    return schedules.map(raw =>
-      MaintenanceSchedule.restore(
-        raw.id,
-        raw.assetId,
-        raw.title,
-        raw.description ?? undefined,
-        raw.frequency as MaintenanceFrequency,
-        raw.intervalValue,
-        raw.lastExecutedAt ?? undefined,
-        raw.nextDueDate,
-        raw.estimatedDuration ?? undefined,
-        raw.assignedToId ?? undefined,
-        raw.isActive,
-        raw.priority as 'LOW' | 'HIGH',
-        raw.createdAt,
-        raw.updatedAt
-      )
-    );
+    // Filtrer les threshold-based qui sont vraiment dus
+    return schedules
+      .map(raw => mapToEntity(raw as PrismaSchedule))
+      .filter(schedule => schedule.isDue());
   }
 
   async findAll(): Promise<MaintenanceSchedule[]> {
     const schedules = await prisma.maintenanceSchedule.findMany({
-      orderBy: { nextDueDate: 'asc' },
+      orderBy: [
+        { triggerType: 'asc' },
+        { nextDueDate: 'asc' },
+      ],
     });
 
-    return schedules.map(raw =>
-      MaintenanceSchedule.restore(
-        raw.id,
-        raw.assetId,
-        raw.title,
-        raw.description ?? undefined,
-        raw.frequency as MaintenanceFrequency,
-        raw.intervalValue,
-        raw.lastExecutedAt ?? undefined,
-        raw.nextDueDate,
-        raw.estimatedDuration ?? undefined,
-        raw.assignedToId ?? undefined,
-        raw.isActive,
-        raw.priority as 'LOW' | 'HIGH',
-        raw.createdAt,
-        raw.updatedAt
-      )
-    );
+    return schedules.map(raw => mapToEntity(raw as PrismaSchedule));
   }
 
   async update(schedule: MaintenanceSchedule): Promise<void> {
@@ -136,10 +142,16 @@ export class PrismaMaintenanceScheduleRepository implements MaintenanceScheduleR
       data: {
         title: schedule.title,
         description: schedule.description,
+        maintenanceType: schedule.maintenanceType,
+        triggerType: schedule.triggerType,
         frequency: schedule.frequency,
         intervalValue: schedule.intervalValue,
         lastExecutedAt: schedule.lastExecutedAt,
         nextDueDate: schedule.nextDueDate,
+        thresholdMetric: schedule.thresholdMetric,
+        thresholdValue: schedule.thresholdValue,
+        thresholdUnit: schedule.thresholdUnit,
+        currentValue: schedule.currentValue,
         estimatedDuration: schedule.estimatedDuration,
         assignedToId: schedule.assignedToId,
         isActive: schedule.isActive,

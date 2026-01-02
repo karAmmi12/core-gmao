@@ -30,6 +30,7 @@ model Asset {
   // Relation : une machine a plusieurs interventions
   workOrders   WorkOrder[]
   maintenanceSchedules MaintenanceSchedule[]
+  partRequests PartRequest[]
 
   @@index([parentId])
 }
@@ -54,7 +55,7 @@ model WorkOrder {
   id          String   @id
   title       String   // Ex: "Changer le filtre"
   description String?  // Description détaillée
-  status      String   // DRAFT, PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+  status      String   // DRAFT, PENDING, APPROVED, REJECTED, PLANNED, ASSIGNED, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED
   priority    String   // LOW, HIGH
   type        String   @default("CORRECTIVE") // PREVENTIVE, CORRECTIVE
   createdAt   DateTime @default(now())
@@ -71,9 +72,17 @@ model WorkOrder {
   assignedTo   Technician? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
 
   // Coûts
-  laborCost    Float @default(0)  // Coût main d'œuvre
-  materialCost Float @default(0)  // Coût matériel
-  totalCost    Float @default(0)  // Coût total
+  laborCost     Float  @default(0)  // Coût main d'œuvre
+  materialCost  Float  @default(0)  // Coût matériel
+  totalCost     Float  @default(0)  // Coût total
+  estimatedCost Float? // Coût estimé (déclenche approbation si élevé)
+
+  // Approbation (workflow conditionnel)
+  requiresApproval Boolean   @default(false) // Flag automatique selon type/priorité/coût
+  approvedById     String?
+  approvedBy       User?     @relation("WorkOrderApprovedBy", fields: [approvedById], references: [id])
+  approvedAt       DateTime?
+  rejectionReason  String?
 
   // Relation vers Asset
   assetId     String
@@ -81,10 +90,12 @@ model WorkOrder {
 
   // Pièces utilisées
   parts       WorkOrderPart[]
+  partRequests PartRequest[]
 
   @@index([assignedToId])
   @@index([scheduledAt])
   @@index([status])
+  @@index([requiresApproval])
   @@map("work_orders")
 }
 
@@ -106,6 +117,7 @@ model Part {
   // Relations
   stockMovements   StockMovement[]
   workOrderParts   WorkOrderPart[]
+  partRequests     PartRequest[]
 
   @@index([reference])
   @@index([category])
@@ -139,15 +151,80 @@ model WorkOrderPart {
   partId       String
   part         Part       @relation(fields: [partId], references: [id])
   
-  quantity     Int        // Quantité utilisée
-  unitPrice    Float      // Prix unitaire au moment de l'utilisation (historique)
-  totalPrice   Float      // Prix total = quantity * unitPrice
+  // Quantités avec workflow
+  quantityPlanned   Int        // Quantité prévue/demandée
+  quantityReserved  Int        @default(0) // Quantité réservée en stock
+  quantityConsumed  Int        @default(0) // Quantité réellement consommée
+  
+  // Statut du workflow
+  status       String     @default("PLANNED") // PLANNED, RESERVED, PARTIALLY_RESERVED, CONSUMED, CANCELLED
+  
+  // Prix
+  unitPrice    Float      // Prix unitaire au moment de la planification
+  totalPrice   Float      // Prix total = quantityConsumed * unitPrice (calculé à la consommation)
+  
+  // Traçabilité
+  requestedById String?   // Technicien qui a demandé (si demande terrain)
+  requestedBy   User?     @relation("PartRequestedBy", fields: [requestedById], references: [id])
+  approvedById  String?   // Manager qui a approuvé
+  approvedBy    User?     @relation("PartApprovedBy", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  consumedAt    DateTime? // Date de consommation réelle
+  
+  notes        String?    // Notes/commentaires
   
   createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   @@index([workOrderId])
   @@index([partId])
+  @@index([status])
   @@map("work_order_parts")
+}
+
+// Demandes urgentes de pièces (hors OT ou avant création OT)
+model PartRequest {
+  id            String    @id
+  
+  // Pièce demandée
+  partId        String
+  part          Part      @relation(fields: [partId], references: [id])
+  quantity      Int
+  
+  // Demandeur et contexte
+  requestedById String
+  requestedBy   User      @relation("PartRequestCreatedBy", fields: [requestedById], references: [id])
+  reason        String    // Raison de la demande
+  urgency       String    @default("NORMAL") // LOW, NORMAL, HIGH, CRITICAL
+  
+  // Lien optionnel avec un OT existant ou un équipement
+  workOrderId   String?
+  workOrder     WorkOrder? @relation(fields: [workOrderId], references: [id])
+  assetId       String?
+  asset         Asset?    @relation(fields: [assetId], references: [id])
+  
+  // Workflow de validation
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED, DELIVERED, CANCELLED
+  
+  approvedById  String?
+  approvedBy    User?     @relation("PartRequestApprovedBy", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  rejectionReason String?
+  
+  deliveredAt   DateTime?
+  deliveredById String?
+  deliveredBy   User?     @relation("PartRequestDeliveredBy", fields: [deliveredById], references: [id])
+  
+  notes         String?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([partId])
+  @@index([requestedById])
+  @@index([status])
+  @@index([urgency])
+  @@map("part_requests")
 }
 
 model MaintenanceSchedule {
@@ -158,11 +235,21 @@ model MaintenanceSchedule {
   title             String    
   description       String?   
   
-  frequency         String    // DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY
-  intervalValue     Int       @default(1)
+  // Type de maintenance et déclenchement
+  maintenanceType   String    @default("PREVENTIVE") // PREVENTIVE, PREDICTIVE
+  triggerType       String    @default("TIME_BASED") // TIME_BASED, THRESHOLD_BASED
   
+  // Champs pour TIME_BASED (maintenance préventive classique)
+  frequency         String    @default("MONTHLY") // DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY
+  intervalValue     Int       @default(1)
   lastExecutedAt    DateTime? 
-  nextDueDate       DateTime 
+  nextDueDate       DateTime  @default(now())
+  
+  // Champs pour THRESHOLD_BASED (maintenance prédictive)
+  thresholdMetric   String?   // Ex: "Heures de fonctionnement", "Kilométrage", "Cycles"
+  thresholdValue    Float?    // Valeur de seuil à ne pas dépasser
+  thresholdUnit     String?   // Ex: "h", "km", "cycles"
+  currentValue      Float?    @default(0) // Valeur actuelle du compteur
   
   estimatedDuration Float?    
   assignedToId      String?   
@@ -177,6 +264,7 @@ model MaintenanceSchedule {
   @@index([assetId])
   @@index([nextDueDate])
   @@index([isActive])
+  @@index([triggerType])
   @@map("maintenance_schedules")
 }
 
@@ -222,4 +310,49 @@ model ConfigurationItem {
   @@index([categoryId])
   @@index([isActive])
   @@map("configuration_items")
+}
+
+// =============================================================================
+// AUTHENTIFICATION & UTILISATEURS
+// =============================================================================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  password      String?   // Hash bcrypt, null jusqu'à activation
+  role          String    @default("OPERATOR") // ADMIN, MANAGER, TECHNICIAN, OPERATOR, VIEWER
+  isActive      Boolean   @default(false)
+  
+  // Système d'invitation
+  inviteToken       String?   @unique
+  inviteExpiresAt   DateTime?
+  mustChangePassword Boolean  @default(true)
+  
+  // Sécurité
+  lastLoginAt   DateTime?
+  failedLogins  Int       @default(0)
+  lockedUntil   DateTime?
+  
+  // Audit
+  createdAt     DateTime  @default(now())
+  createdById   String?   // ID de l'admin qui a créé ce compte
+  createdBy     User?     @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  usersCreated  User[]    @relation("UserCreatedBy")
+  updatedAt     DateTime  @updatedAt
+
+  // Relations avec les pièces
+  partsRequested      WorkOrderPart[] @relation("PartRequestedBy")
+  partsApproved       WorkOrderPart[] @relation("PartApprovedBy")
+  partRequestsCreated PartRequest[]   @relation("PartRequestCreatedBy")
+  partRequestsApproved PartRequest[]  @relation("PartRequestApprovedBy")
+  partRequestsDelivered PartRequest[] @relation("PartRequestDeliveredBy")
+
+  // Relations avec les interventions
+  workOrdersApproved  WorkOrder[]     @relation("WorkOrderApprovedBy")
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
 }

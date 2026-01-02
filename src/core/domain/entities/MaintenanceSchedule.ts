@@ -1,14 +1,25 @@
 import { v4 as uuidv4 } from 'uuid';
 
 export type MaintenanceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+export type MaintenanceTriggerType = 'TIME_BASED' | 'THRESHOLD_BASED';
+export type MaintenanceType = 'PREVENTIVE' | 'PREDICTIVE';
 
 export interface MaintenanceScheduleInput {
   assetId: string;
   title: string;
   description?: string;
-  frequency: MaintenanceFrequency;
+  maintenanceType?: MaintenanceType;
+  triggerType?: MaintenanceTriggerType;
+  // Time-based fields
+  frequency?: MaintenanceFrequency;
   intervalValue?: number;
-  nextDueDate: Date;
+  nextDueDate?: Date;
+  // Threshold-based fields
+  thresholdMetric?: string;
+  thresholdValue?: number;
+  thresholdUnit?: string;
+  currentValue?: number;
+  // Common fields
   estimatedDuration?: number;
   assignedToId?: string;
   priority?: 'LOW' | 'HIGH';
@@ -20,10 +31,19 @@ export class MaintenanceSchedule {
     public readonly assetId: string,
     public readonly title: string,
     public readonly description: string | undefined,
+    public readonly maintenanceType: MaintenanceType,
+    public readonly triggerType: MaintenanceTriggerType,
+    // Time-based
     public readonly frequency: MaintenanceFrequency,
     public readonly intervalValue: number,
     public readonly lastExecutedAt: Date | undefined,
     public readonly nextDueDate: Date,
+    // Threshold-based
+    public readonly thresholdMetric: string | undefined,
+    public readonly thresholdValue: number | undefined,
+    public readonly thresholdUnit: string | undefined,
+    public readonly currentValue: number | undefined,
+    // Common
     public readonly estimatedDuration: number | undefined,
     public readonly assignedToId: string | undefined,
     public readonly isActive: boolean,
@@ -37,6 +57,22 @@ export class MaintenanceSchedule {
       throw new Error('Le titre doit contenir au moins 5 caractères');
     }
 
+    const triggerType = input.triggerType || 'TIME_BASED';
+    
+    // Validation selon le type de déclenchement
+    if (triggerType === 'TIME_BASED') {
+      if (!input.frequency) {
+        throw new Error('La fréquence est requise pour une maintenance temporelle');
+      }
+      if (!input.nextDueDate) {
+        throw new Error('La date de prochaine échéance est requise');
+      }
+    } else {
+      if (!input.thresholdMetric || !input.thresholdValue) {
+        throw new Error('Le métrique et la valeur de seuil sont requis pour une maintenance prédictive');
+      }
+    }
+
     const now = new Date();
 
     return new MaintenanceSchedule(
@@ -44,10 +80,16 @@ export class MaintenanceSchedule {
       input.assetId,
       input.title,
       input.description,
-      input.frequency,
+      input.maintenanceType || 'PREVENTIVE',
+      triggerType,
+      input.frequency || 'MONTHLY',
       input.intervalValue || 1,
       undefined, // lastExecutedAt
-      input.nextDueDate,
+      input.nextDueDate || new Date(),
+      input.thresholdMetric,
+      input.thresholdValue,
+      input.thresholdUnit,
+      input.currentValue || 0,
       input.estimatedDuration,
       input.assignedToId,
       true, // isActive
@@ -62,10 +104,16 @@ export class MaintenanceSchedule {
     assetId: string,
     title: string,
     description: string | undefined,
+    maintenanceType: MaintenanceType,
+    triggerType: MaintenanceTriggerType,
     frequency: MaintenanceFrequency,
     intervalValue: number,
     lastExecutedAt: Date | undefined,
     nextDueDate: Date,
+    thresholdMetric: string | undefined,
+    thresholdValue: number | undefined,
+    thresholdUnit: string | undefined,
+    currentValue: number | undefined,
     estimatedDuration: number | undefined,
     assignedToId: string | undefined,
     isActive: boolean,
@@ -78,10 +126,16 @@ export class MaintenanceSchedule {
       assetId,
       title,
       description,
+      maintenanceType,
+      triggerType,
       frequency,
       intervalValue,
       lastExecutedAt,
       nextDueDate,
+      thresholdMetric,
+      thresholdValue,
+      thresholdUnit,
+      currentValue,
       estimatedDuration,
       assignedToId,
       isActive,
@@ -91,8 +145,33 @@ export class MaintenanceSchedule {
     );
   }
 
+  /**
+   * Vérifie si la maintenance est due
+   * - TIME_BASED: basé sur la date
+   * - THRESHOLD_BASED: basé sur le dépassement du seuil
+   */
   isDue(): boolean {
-    return new Date() >= this.nextDueDate && this.isActive;
+    if (!this.isActive) return false;
+    
+    if (this.triggerType === 'TIME_BASED') {
+      return new Date() >= this.nextDueDate;
+    } else {
+      // Threshold-based: due si currentValue >= thresholdValue
+      if (this.thresholdValue === undefined || this.currentValue === undefined) {
+        return false;
+      }
+      return this.currentValue >= this.thresholdValue;
+    }
+  }
+
+  /**
+   * Retourne le pourcentage de progression vers le seuil (pour THRESHOLD_BASED)
+   */
+  getThresholdProgress(): number {
+    if (this.triggerType !== 'THRESHOLD_BASED' || !this.thresholdValue) {
+      return 0;
+    }
+    return Math.min(100, Math.round(((this.currentValue || 0) / this.thresholdValue) * 100));
   }
 
   calculateNextDueDate(): Date {
@@ -120,18 +199,86 @@ export class MaintenanceSchedule {
     return next;
   }
 
+  /**
+   * Marque le planning comme exécuté
+   * - TIME_BASED: calcule la prochaine date
+   * - THRESHOLD_BASED: remet le compteur à zéro
+   */
   markAsExecuted(executedAt: Date = new Date()): MaintenanceSchedule {
-    const nextDue = this.calculateNextDueDate();
+    if (this.triggerType === 'TIME_BASED') {
+      const nextDue = this.calculateNextDueDate();
+      return MaintenanceSchedule.restore(
+        this.id,
+        this.assetId,
+        this.title,
+        this.description,
+        this.maintenanceType,
+        this.triggerType,
+        this.frequency,
+        this.intervalValue,
+        executedAt,
+        nextDue,
+        this.thresholdMetric,
+        this.thresholdValue,
+        this.thresholdUnit,
+        this.currentValue,
+        this.estimatedDuration,
+        this.assignedToId,
+        this.isActive,
+        this.priority,
+        this.createdAt,
+        new Date()
+      );
+    } else {
+      // THRESHOLD_BASED: reset currentValue to 0
+      return MaintenanceSchedule.restore(
+        this.id,
+        this.assetId,
+        this.title,
+        this.description,
+        this.maintenanceType,
+        this.triggerType,
+        this.frequency,
+        this.intervalValue,
+        executedAt,
+        this.nextDueDate,
+        this.thresholdMetric,
+        this.thresholdValue,
+        this.thresholdUnit,
+        0, // Reset counter
+        this.estimatedDuration,
+        this.assignedToId,
+        this.isActive,
+        this.priority,
+        this.createdAt,
+        new Date()
+      );
+    }
+  }
+
+  /**
+   * Met à jour la valeur courante du compteur (pour THRESHOLD_BASED)
+   */
+  updateCurrentValue(newValue: number): MaintenanceSchedule {
+    if (this.triggerType !== 'THRESHOLD_BASED') {
+      throw new Error('Cette opération n\'est disponible que pour les maintenances prédictives');
+    }
 
     return MaintenanceSchedule.restore(
       this.id,
       this.assetId,
       this.title,
       this.description,
+      this.maintenanceType,
+      this.triggerType,
       this.frequency,
       this.intervalValue,
-      executedAt,
-      nextDue,
+      this.lastExecutedAt,
+      this.nextDueDate,
+      this.thresholdMetric,
+      this.thresholdValue,
+      this.thresholdUnit,
+      newValue,
       this.estimatedDuration,
       this.assignedToId,
       this.isActive,

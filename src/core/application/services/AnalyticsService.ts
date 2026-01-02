@@ -1,7 +1,4 @@
-import { prisma } from '@/shared/lib/prisma';
-import { Prisma } from '@prisma/client';
-
-type WorkOrderWithType = Prisma.WorkOrderGetPayload<{}> & { type?: string };
+import { AnalyticsRepository } from '@/core/domain/repositories/AnalyticsRepository';
 
 export interface AssetAvailability {
   assetId: string;
@@ -56,6 +53,7 @@ export interface DashboardKPIs {
 }
 
 export class AnalyticsService {
+  constructor(private readonly analyticsRepository: AnalyticsRepository) {}
   
   async getDashboardKPIs(): Promise<DashboardKPIs> {
     const [
@@ -64,17 +62,10 @@ export class AnalyticsService {
       parts,
       dueSchedules
     ] = await Promise.all([
-      prisma.asset.findMany(),
-      prisma.workOrder.findMany({
-        where: { completedAt: { not: null } }
-      }),
-      prisma.part.findMany(),
-      prisma.maintenanceSchedule.count({
-        where: {
-          isActive: true,
-          nextDueDate: { lte: new Date() }
-        }
-      })
+      this.analyticsRepository.findAllAssets(),
+      this.analyticsRepository.findCompletedWorkOrders(),
+      this.analyticsRepository.findAllParts(),
+      this.analyticsRepository.countOverdueMaintenances()
     ]);
 
     // Calcul disponibilité
@@ -93,7 +84,7 @@ export class AnalyticsService {
     const mttr = completedOrders.length > 0 ? totalResolutionTime / completedOrders.length : 0;
 
     // Taux de préventif
-    const allOrders = await prisma.workOrder.findMany() as WorkOrderWithType[];
+    const allOrders = await this.analyticsRepository.findAllWorkOrders();
     const preventiveOrders = allOrders.filter(o => o.type === 'PREVENTIVE').length;
     const preventiveRate = allOrders.length > 0 ? (preventiveOrders / allOrders.length) * 100 : 0;
 
@@ -105,9 +96,7 @@ export class AnalyticsService {
     const stockValue = parts.reduce((sum, p) => sum + (p.quantityInStock * p.unitPrice), 0);
 
     // Ordres en attente
-    const pendingOrders = await prisma.workOrder.count({
-      where: { status: { in: ['PENDING', 'PLANNED'] } }
-    });
+    const pendingOrders = await this.analyticsRepository.countPendingWorkOrders();
 
     return {
       availability: Math.round(availability * 10) / 10,
@@ -121,7 +110,7 @@ export class AnalyticsService {
   }
 
   async getMaintenanceStats(): Promise<MaintenanceStats> {
-    const workOrders = await prisma.workOrder.findMany() as WorkOrderWithType[];
+    const workOrders = await this.analyticsRepository.findAllWorkOrders();
     
     const preventiveCount = workOrders.filter(o => o.type === 'PREVENTIVE').length;
     const correctiveCount = workOrders.filter(o => o.type === 'CORRECTIVE').length;
@@ -147,8 +136,8 @@ export class AnalyticsService {
   }
 
   async getInventoryStats(): Promise<InventoryStats> {
-    const parts = await prisma.part.findMany();
-    const movements = await prisma.stockMovement.findMany();
+    const parts = await this.analyticsRepository.findAllParts();
+    const movements = await this.analyticsRepository.findAllStockMovements();
     
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -179,12 +168,7 @@ export class AnalyticsService {
   }
 
   async getTechnicianPerformance(): Promise<TechnicianPerformance[]> {
-    const technicians = await prisma.technician.findMany({
-      where: { isActive: true },
-      include: {
-        workOrders: true
-      }
-    });
+    const technicians = await this.analyticsRepository.findActiveTechniciansWithWorkOrders();
 
     return technicians.map(tech => {
       const completed = tech.workOrders.filter(o => o.status === 'COMPLETED').length;
@@ -210,9 +194,7 @@ export class AnalyticsService {
   }
 
   async getMonthlyTrends(months: number = 6): Promise<MonthlyTrend[]> {
-    const workOrders = await prisma.workOrder.findMany({
-      orderBy: { createdAt: 'asc' }
-    }) as WorkOrderWithType[];
+    const workOrders = await this.analyticsRepository.findWorkOrdersOrderedByDate();
 
     const trends: MonthlyTrend[] = [];
     const now = new Date();
@@ -239,13 +221,7 @@ export class AnalyticsService {
   }
 
   async getAssetAvailability(): Promise<AssetAvailability[]> {
-    const assets = await prisma.asset.findMany({
-      include: {
-        workOrders: {
-          where: { status: 'COMPLETED' }
-        }
-      }
-    });
+    const assets = await this.analyticsRepository.findAssetsWithCompletedWorkOrders();
 
     return assets.map(asset => {
       // Estimation basée sur les interventions
@@ -274,17 +250,14 @@ export class AnalyticsService {
   }
 
   async getStatusDistribution(): Promise<{ status: string; count: number; percentage: number }[]> {
-    const workOrders = await prisma.workOrder.groupBy({
-      by: ['status'],
-      _count: true
-    });
+    const workOrders = await this.analyticsRepository.countWorkOrdersByStatus();
 
-    const total = workOrders.reduce((sum, s) => sum + s._count, 0);
+    const total = workOrders.reduce((sum, s) => sum + s.count, 0);
 
     return workOrders.map(s => ({
       status: s.status,
-      count: s._count,
-      percentage: total > 0 ? Math.round((s._count / total) * 100 * 10) / 10 : 0
+      count: s.count,
+      percentage: total > 0 ? Math.round((s.count / total) * 100 * 10) / 10 : 0
     }));
   }
 }

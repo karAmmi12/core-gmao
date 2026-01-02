@@ -1,9 +1,10 @@
-import { WorkOrder, OrderPriority, WorkOrderSchedule } from "@/core/domain/entities/WorkOrder";
+import { WorkOrder, OrderPriority, MaintenanceType, WorkOrderSchedule } from "@/core/domain/entities/WorkOrder";
 import { WorkOrderRepository } from "@/core/domain/repositories/WorkOrderRepository";
 import { TechnicianRepository } from "@/core/domain/repositories/TechnicianRepository";
 import { PartRepository } from "@/core/domain/repositories/PartRepository";
-import { StockMovementRepository } from "@/core/domain/repositories/StockMovementRepository";
-import { StockMovement } from "@/core/domain/entities/StockMovement";
+import { PartRequest } from "@/core/domain/entities/PartRequest";
+import type { IPartRequestRepository } from "@/core/domain/repositories/PartRequestRepository";
+import { v4 as uuidv4 } from 'uuid';
 
 export interface WorkOrderPartInput {
   partId: string;
@@ -15,9 +16,14 @@ export interface CreateWorkOrderInput {
   title: string;
   description?: string;
   priority: OrderPriority;
+  type?: MaintenanceType;
   assetId: string;
+  scheduleId?: string;
   schedule?: WorkOrderSchedule;
   parts?: WorkOrderPartInput[];
+  requestedById?: string; // ID de l'utilisateur qui crée l'intervention
+  estimatedCost?: number; // Coût estimé pour déclencher l'approbation
+  createdByRole?: 'ADMIN' | 'MANAGER' | 'TECHNICIAN' | 'STOCK_MANAGER' | 'OPERATOR' | 'VIEWER'; // Rôle pour approbation
 }
 
 export class CreateWorkOrderUseCase {
@@ -25,7 +31,7 @@ export class CreateWorkOrderUseCase {
     private workOrderRepo: WorkOrderRepository,
     private technicianRepo?: TechnicianRepository,
     private partRepo?: PartRepository,
-    private stockMovementRepo?: StockMovementRepository
+    private partRequestRepo?: IPartRequestRepository
   ) {}
 
   async execute(input: CreateWorkOrderInput) {
@@ -40,15 +46,12 @@ export class CreateWorkOrderUseCase {
       }
     }
 
-    // Vérifier les pièces et le stock disponible
+    // Vérifier que les pièces existent (pas de vérification de stock, car c'est une demande)
     if (input.parts && input.parts.length > 0 && this.partRepo) {
       for (const partInput of input.parts) {
         const part = await this.partRepo.findById(partInput.partId);
         if (!part) {
           throw new Error(`La pièce ${partInput.partId} n'existe pas`);
-        }
-        if (!part.canFulfill(partInput.quantity)) {
-          throw new Error(`Stock insuffisant pour ${part.name}. Disponible: ${part.quantityInStock}, Demandé: ${partInput.quantity}`);
         }
       }
     }
@@ -58,33 +61,46 @@ export class CreateWorkOrderUseCase {
       input.priority,
       input.assetId,
       input.description,
-      input.schedule
+      input.schedule,
+      input.type || 'CORRECTIVE',
+      input.scheduleId,
+      input.estimatedCost,
+      input.createdByRole
     );
     
     await this.workOrderRepo.save(order);
+    console.log("✅ WorkOrder saved:", order.id);
 
-    // Enregistrer les pièces utilisées et créer les mouvements de stock
-    if (input.parts && input.parts.length > 0 && this.partRepo && this.stockMovementRepo) {
+    // Créer des demandes de pièces (PartRequest) pour validation par le manager
+    // Le stock ne sera décrémenté que lors de la livraison après approbation
+    if (input.parts && input.parts.length > 0 && this.partRequestRepo && input.requestedById) {
       for (const partInput of input.parts) {
-        // Créer le lien WorkOrderPart dans le repository
-        await this.workOrderRepo.addPart(order.id, partInput.partId, partInput.quantity, partInput.unitPrice);
-
-        // Créer un mouvement de stock (sortie)
-        const movement = StockMovement.create({
+        console.log("📦 Creating part request for:", partInput.partId, "qty:", partInput.quantity);
+        
+        // Déterminer l'urgence en fonction de la priorité de l'OT
+        const urgency = input.priority === 'HIGH' ? 'HIGH' : 'NORMAL';
+        
+        // Créer une demande de pièce liée à l'OT
+        const partRequest = PartRequest.create({
+          id: uuidv4(),
           partId: partInput.partId,
-          type: 'OUT',
           quantity: partInput.quantity,
-          reason: `Utilisé pour intervention: ${input.title}`,
-          reference: order.id,
+          requestedById: input.requestedById,
+          reason: `Pièce nécessaire pour l'intervention: ${input.title}`,
+          urgency,
+          workOrderId: order.id,
+          assetId: input.assetId,
         });
-        await this.stockMovementRepo.save(movement);
-
-        // Mettre à jour le stock
-        const part = await this.partRepo.findById(partInput.partId);
-        if (part) {
-          await this.partRepo.updateStock(partInput.partId, part.quantityInStock - partInput.quantity);
-        }
+        
+        await this.partRequestRepo.save(partRequest);
+        console.log("✅ Part request created:", partRequest.id);
+        
+        // Enregistrer aussi le lien WorkOrderPart (avec statut PLANNED)
+        await this.workOrderRepo.addPart(order.id, partInput.partId, partInput.quantity, partInput.unitPrice);
+        console.log("✅ Part linked to work order");
       }
+    } else if (input.parts && input.parts.length > 0) {
+      console.log("⚠️ Cannot create part requests - missing partRequestRepo or requestedById");
     }
 
     return { id: order.id };

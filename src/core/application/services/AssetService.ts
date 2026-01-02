@@ -21,6 +21,7 @@ export class AssetService {
       brokenAssets: result.assets.broken,
       pendingOrders: result.pendingOrders,
       availabilityRate: result.availabilityRate,
+      ordersByType: result.ordersByType,
     };
   }
 
@@ -42,8 +43,12 @@ export class AssetService {
     
     // Charger les pièces pour chaque intervention
     for (const workOrder of historyDTOs) {
-      const parts = await this.orderRepo.getWorkOrderParts(workOrder.id);
-      workOrder.parts = parts;
+      const partsDetails = await this.orderRepo.getWorkOrderParts(workOrder.id);
+      // Map WorkOrderPartDetails to WorkOrderPartDTO with backward-compatible quantity
+      workOrder.parts = partsDetails.map(p => ({
+        ...p,
+        quantity: p.quantityPlanned, // Backward compatibility
+      }));
     }
 
     return {

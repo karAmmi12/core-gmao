@@ -8,6 +8,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ReactNode, useState } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import { 
   LayoutDashboard, 
   Box, 
@@ -19,25 +20,52 @@ import {
   Settings,
   Bell,
   Menu,
-  X
+  X,
+  Activity,
+  LogOut,
+  ChevronDown,
+  Shield,
+  ClipboardList,
+  ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/styles/design-system';
 import { Logo } from '../ui/Logo';
+import type { UserRole } from '@/core/domain/entities/User';
 
 // =============================================================================
 // NAVIGATION CONFIG
 // =============================================================================
 
-const NAV_ITEMS = [
+// Définir quels rôles ont accès à chaque route
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  roles?: UserRole[]; // Si undefined, accessible à tous
+};
+
+const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/hierarchy', label: 'Hiérarchie', icon: GitBranch },
   { href: '/assets', label: 'Équipements', icon: Box },
-  { href: '/maintenance', label: 'Maintenance', icon: Wrench },
-  { href: '/inventory', label: 'Inventaire', icon: Package },
-  { href: '/technicians', label: 'Techniciens', icon: Users },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/settings', label: 'Paramètres', icon: Settings },
-] as const;
+  { href: '/work-orders', label: 'Interventions', icon: Activity },
+  { href: '/approvals', label: 'Approbations', icon: ShieldCheck, roles: ['ADMIN', 'MANAGER'] },
+  { href: '/part-requests', label: 'Demandes pièces', icon: ClipboardList, roles: ['ADMIN', 'MANAGER', 'TECHNICIAN', 'STOCK_MANAGER'] },
+  { href: '/maintenance', label: 'Maintenance', icon: Wrench, roles: ['ADMIN', 'MANAGER', 'TECHNICIAN'] },
+  { href: '/inventory', label: 'Inventaire', icon: Package, roles: ['ADMIN', 'MANAGER', 'STOCK_MANAGER'] },
+  { href: '/technicians', label: 'Techniciens', icon: Users, roles: ['ADMIN', 'MANAGER'] },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['ADMIN', 'MANAGER', 'VIEWER'] },
+  { href: '/settings', label: 'Paramètres', icon: Settings, roles: ['ADMIN', 'MANAGER'] },
+];
+
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Administrateur',
+  MANAGER: 'Responsable',
+  TECHNICIAN: 'Technicien',
+  STOCK_MANAGER: 'Gestionnaire Stock',
+  OPERATOR: 'Opérateur',
+  VIEWER: 'Lecteur',
+};
 
 // =============================================================================
 // SIDEBAR
@@ -50,6 +78,16 @@ interface SidebarProps {
 
 function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const userRole = session?.user?.role as UserRole | undefined;
+
+  // Filtrer les items de navigation selon le rôle
+  const filteredNavItems = NAV_ITEMS.filter(item => {
+    // Si pas de restriction de rôle, accessible à tous
+    if (!item.roles) return true;
+    // Sinon, vérifier si le rôle utilisateur est autorisé
+    return userRole && item.roles.includes(userRole);
+  });
   
   return (
     <>
@@ -85,7 +123,7 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 py-4 lg:py-6 px-2 lg:px-3 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map((item) => {
+          {filteredNavItems.map((item) => {
             const isActive = pathname === item.href || 
               (item.href !== '/' && pathname.startsWith(item.href));
             const Icon = item.icon;
@@ -109,17 +147,19 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
           })}
         </nav>
 
-        {/* Footer */}
-        <div className="p-3 lg:p-4 border-t border-neutral-200">
-          <Link
-            href="/settings"
-            onClick={onClose}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
-          >
-            <Settings className="w-5 h-5" />
-            Paramètres
-          </Link>
-        </div>
+        {/* Footer - Settings link (only for ADMIN and MANAGER) */}
+        {userRole && ['ADMIN', 'MANAGER'].includes(userRole) && (
+          <div className="p-3 lg:p-4 border-t border-neutral-200">
+            <Link
+              href="/settings"
+              onClick={onClose}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+            >
+              <Settings className="w-5 h-5" />
+              Paramètres
+            </Link>
+          </div>
+        )}
       </aside>
     </>
   );
@@ -134,6 +174,20 @@ interface HeaderProps {
 }
 
 function Header({ onMenuClick }: HeaderProps) {
+  const { data: session } = useSession();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const userInitials = session?.user?.name
+    ?.split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'U';
+
+  const handleSignOut = () => {
+    signOut({ callbackUrl: '/login' });
+  };
+
   return (
     <header className={cn(
       "fixed top-0 right-0 h-14 lg:h-16 bg-white border-b border-neutral-200",
@@ -167,15 +221,69 @@ function Header({ onMenuClick }: HeaderProps) {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger-500 rounded-full" />
         </button>
         
-        {/* User */}
-        <div className="flex items-center gap-2 lg:gap-3 pl-2 lg:pl-4 border-l border-neutral-200">
-          <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-            <span className="text-sm font-semibold text-primary-700">AD</span>
-          </div>
-          <div className="hidden md:block">
-            <p className="text-sm font-medium text-neutral-900">Admin</p>
-            <p className="text-xs text-neutral-500">Responsable</p>
-          </div>
+        {/* User menu */}
+        <div className="relative">
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="flex items-center gap-2 lg:gap-3 pl-2 lg:pl-4 border-l border-neutral-200 hover:bg-neutral-50 rounded-lg py-1 pr-2 transition-colors"
+          >
+            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+              <span className="text-sm font-semibold text-primary-700">{userInitials}</span>
+            </div>
+            <div className="hidden md:block text-left">
+              <p className="text-sm font-medium text-neutral-900">{session?.user?.name || 'Utilisateur'}</p>
+              <p className="text-xs text-neutral-500">{ROLE_LABELS[session?.user?.role || 'VIEWER'] || 'Utilisateur'}</p>
+            </div>
+            <ChevronDown className="w-4 h-4 text-neutral-400 hidden md:block" />
+          </button>
+
+          {/* Dropdown menu */}
+          {showUserMenu && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setShowUserMenu(false)} 
+              />
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-neutral-200 py-2 z-50">
+                {/* User info */}
+                <div className="px-4 py-2 border-b border-neutral-100">
+                  <p className="font-medium text-neutral-900">{session?.user?.name}</p>
+                  <p className="text-sm text-neutral-500">{session?.user?.email}</p>
+                </div>
+                
+                {/* Admin link */}
+                {session?.user?.role === 'ADMIN' && (
+                  <Link
+                    href="/users"
+                    onClick={() => setShowUserMenu(false)}
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                  >
+                    <Shield className="w-4 h-4" />
+                    Gestion utilisateurs
+                  </Link>
+                )}
+                
+                {/* Settings */}
+                <Link
+                  href="/settings"
+                  onClick={() => setShowUserMenu(false)}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                >
+                  <Settings className="w-4 h-4" />
+                  Paramètres
+                </Link>
+                
+                {/* Logout */}
+                <button
+                  onClick={handleSignOut}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-danger-600 hover:bg-danger-50 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Se déconnecter
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </header>

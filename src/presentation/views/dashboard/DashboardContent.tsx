@@ -4,7 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { 
   Box, CheckCircle, AlertCircle, Zap, Activity, Clock,
-  Plus, ArrowRight, AlertTriangle, TrendingUp, Calendar
+  Plus, ArrowRight, AlertTriangle, TrendingUp, Calendar,
+  Wrench, ShieldCheck, LineChart, Gauge
 } from 'lucide-react';
 import { DashboardStatsDTO, AssetDTO } from '@/core/application/dto/AssetDTO';
 import { MaintenanceScheduleDTO } from '@/core/application/dto/MaintenanceScheduleDTO';
@@ -210,6 +211,97 @@ function RecentAssets({ assets }: { assets: AssetDTO[] }) {
             </div>
           </Link>
         ))}
+      </div>
+    </Card>
+  );
+}
+
+// ============================================================================
+// Maintenance Type Stats Component
+// ============================================================================
+
+function MaintenanceTypeStats({ ordersByType }: { ordersByType?: DashboardStatsDTO['ordersByType'] }) {
+  if (!ordersByType) return null;
+
+  const total = ordersByType.CORRECTIVE + ordersByType.PREVENTIVE + ordersByType.PREDICTIVE + ordersByType.CONDITIONAL;
+
+  const types = [
+    { 
+      key: 'CORRECTIVE', 
+      label: 'Corrective', 
+      count: ordersByType.CORRECTIVE, 
+      icon: <Wrench size={18} />,
+      color: 'text-danger-600',
+      bgColor: 'bg-danger-100',
+    },
+    { 
+      key: 'PREVENTIVE', 
+      label: 'Préventive', 
+      count: ordersByType.PREVENTIVE, 
+      icon: <ShieldCheck size={18} />,
+      color: 'text-success-600',
+      bgColor: 'bg-success-100',
+    },
+    { 
+      key: 'PREDICTIVE', 
+      label: 'Prédictive', 
+      count: ordersByType.PREDICTIVE, 
+      icon: <LineChart size={18} />,
+      color: 'text-primary-600',
+      bgColor: 'bg-primary-100',
+    },
+    { 
+      key: 'CONDITIONAL', 
+      label: 'Conditionnelle', 
+      count: ordersByType.CONDITIONAL, 
+      icon: <Gauge size={18} />,
+      color: 'text-warning-600',
+      bgColor: 'bg-warning-100',
+    },
+  ];
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+          <Activity className="text-neutral-600" size={20} />
+          Interventions par type
+        </h3>
+        <Badge variant="neutral">{total} total</Badge>
+      </div>
+
+      <div className="space-y-3">
+        {types.map((type) => {
+          const percentage = total > 0 ? Math.round((type.count / total) * 100) : 0;
+          return (
+            <Link
+              key={type.key}
+              href={`/work-orders?type=${type.key}`}
+              className="block p-3 hover:bg-neutral-50 rounded-lg transition-colors border border-neutral-100"
+            >
+              <div className="flex items-center gap-3">
+                <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', type.bgColor, type.color)}>
+                  {type.icon}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm">{type.label}</span>
+                    <span className="text-sm font-semibold">{type.count}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="flex-1 h-2 bg-neutral-200 rounded-full overflow-hidden">
+                      <div 
+                        className={cn('h-full rounded-full', type.bgColor.replace('100', '500'))}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-neutral-500 w-8">{percentage}%</span>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </Card>
   );
@@ -458,6 +550,11 @@ export function DashboardContent({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         <QuickActions />
         <MaintenanceDue schedules={dueSchedules} />
+        <MaintenanceTypeStats ordersByType={stats.ordersByType} />
+      </div>
+
+      {/* Recent Assets */}
+      <div className="mt-6">
         <RecentAssets assets={assets} />
       </div>
 

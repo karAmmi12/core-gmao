@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const MaintenanceTypeEnum = z.enum(['CORRECTIVE', 'PREVENTIVE', 'PREDICTIVE', 'CONDITIONAL']);
+
 export const WorkOrderPartSchema = z.object({
   partId: z.string().uuid("ID de pièce invalide"),
   quantity: z.coerce.number().min(1, "La quantité doit être au moins 1"),
@@ -13,9 +15,9 @@ export const CreateWorkOrderSchema = z.object({
   
   description: z.string().optional(),
   
-  priority: z.enum(['LOW', 'HIGH'], {
-    errorMap: () => ({ message: "La priorité doit être LOW ou HIGH" })
-  }),
+  priority: z.enum(['LOW', 'HIGH']),
+
+  type: MaintenanceTypeEnum.default('CORRECTIVE'),
   
   assetId: z.string().uuid("ID d'asset invalide"),
   

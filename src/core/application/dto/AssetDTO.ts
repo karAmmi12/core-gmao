@@ -25,4 +25,11 @@ export interface DashboardStatsDTO {
   brokenAssets: number;
   pendingOrders: number;
   availabilityRate: number;
+  // Stats par type de maintenance
+  ordersByType?: {
+    CORRECTIVE: number;
+    PREVENTIVE: number;
+    PREDICTIVE: number;
+    CONDITIONAL: number;
+  };
 }

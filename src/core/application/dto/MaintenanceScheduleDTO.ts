@@ -1,4 +1,4 @@
-import { MaintenanceSchedule, MaintenanceFrequency } from '@/core/domain/entities/MaintenanceSchedule';
+import { MaintenanceSchedule, MaintenanceFrequency, MaintenanceTriggerType, MaintenanceType } from '@/core/domain/entities/MaintenanceSchedule';
 
 export interface MaintenanceScheduleDTO {
   id: string;
@@ -6,10 +6,21 @@ export interface MaintenanceScheduleDTO {
   assetName?: string;
   title: string;
   description?: string;
+  // Type de maintenance
+  maintenanceType: MaintenanceType;
+  triggerType: MaintenanceTriggerType;
+  // Time-based
   frequency: MaintenanceFrequency;
   intervalValue: number;
   lastExecutedAt?: string;
   nextDueDate: string;
+  // Threshold-based
+  thresholdMetric?: string;
+  thresholdValue?: number;
+  thresholdUnit?: string;
+  currentValue?: number;
+  thresholdProgress?: number; // Pourcentage de progression vers le seuil
+  // Common
   estimatedDuration?: number;
   assignedToId?: string;
   assignedToName?: string;
@@ -28,10 +39,17 @@ export class MaintenanceScheduleMapper {
       assetName,
       title: schedule.title,
       description: schedule.description,
+      maintenanceType: schedule.maintenanceType,
+      triggerType: schedule.triggerType,
       frequency: schedule.frequency,
       intervalValue: schedule.intervalValue,
       lastExecutedAt: schedule.lastExecutedAt?.toISOString(),
       nextDueDate: schedule.nextDueDate.toISOString(),
+      thresholdMetric: schedule.thresholdMetric,
+      thresholdValue: schedule.thresholdValue,
+      thresholdUnit: schedule.thresholdUnit,
+      currentValue: schedule.currentValue,
+      thresholdProgress: schedule.getThresholdProgress(),
       estimatedDuration: schedule.estimatedDuration,
       assignedToId: schedule.assignedToId,
       assignedToName,

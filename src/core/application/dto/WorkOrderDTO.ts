@@ -1,10 +1,14 @@
-import { OrderStatus, OrderPriority } from '@/core/domain/entities/WorkOrder';
+import { OrderStatus, OrderPriority, MaintenanceType } from '@/core/domain/entities/WorkOrder';
 
 export interface WorkOrderPartDTO {
   partId: string;
   partReference: string;
   partName: string;
-  quantity: number;
+  quantity: number; // For backward compatibility (= quantityPlanned)
+  quantityPlanned: number;
+  quantityReserved: number;
+  quantityConsumed: number;
+  status: string;
   unitPrice: number;
   totalPrice: number;
 }
@@ -15,7 +19,9 @@ export interface WorkOrderDTO {
   description?: string;
   status: OrderStatus;
   priority: OrderPriority;
+  type: MaintenanceType;
   assetId: string;
+  scheduleId?: string;
   createdAt: string; // ISO 8601
   scheduledAt?: string;
   startedAt?: string;
@@ -27,6 +33,13 @@ export interface WorkOrderDTO {
   materialCost: number;
   totalCost: number;
   parts?: WorkOrderPartDTO[];
+  // Champs d'approbation
+  estimatedCost?: number;
+  requiresApproval: boolean;
+  approvedById?: string;
+  approvedByName?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
 }
 
 export interface AssetDetailsDTO {

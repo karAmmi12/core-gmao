@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -11,15 +12,93 @@ async function main() {
   console.log('🗑️  Suppression des données existantes...');
   // Désactiver temporairement les contraintes FK pour SQLite
   await prisma.$executeRaw`PRAGMA foreign_keys = OFF;`;
+  await prisma.partRequest.deleteMany();
+  await prisma.workOrderPart.deleteMany();
   await prisma.stockMovement.deleteMany();
   await prisma.workOrder.deleteMany();
   await prisma.part.deleteMany();
   await prisma.technician.deleteMany();
   await prisma.asset.deleteMany();
+  await prisma.user.deleteMany();
   await prisma.$executeRaw`PRAGMA foreign_keys = ON;`;
   console.log('✅ Données existantes supprimées\n');
 
-  // 0. CRÉER LES TECHNICIENS
+  // 0. CRÉER LES UTILISATEURS
+  console.log('👥 Création des utilisateurs...\n');
+
+  const adminPassword = await bcrypt.hash('Admin123!', 12);
+  const managerPassword = await bcrypt.hash('Manager123!', 12);
+  const techPassword = await bcrypt.hash('Tech123!', 12);
+  const stockPassword = await bcrypt.hash('Stock123!', 12);
+
+  const userAdmin = await prisma.user.create({
+    data: {
+      id: uuidv4(),
+      email: 'admin@gmao.local',
+      name: 'Admin Système',
+      password: adminPassword,
+      role: 'ADMIN',
+      isActive: true,
+      mustChangePassword: false,
+    },
+  });
+  console.log(`  ✓ ${userAdmin.name} (${userAdmin.role}) - admin@gmao.local / Admin123!`);
+
+  const userManager = await prisma.user.create({
+    data: {
+      id: uuidv4(),
+      email: 'manager@gmao.local',
+      name: 'Pierre Durand',
+      password: managerPassword,
+      role: 'MANAGER',
+      isActive: true,
+      mustChangePassword: false,
+    },
+  });
+  console.log(`  ✓ ${userManager.name} (${userManager.role}) - manager@gmao.local / Manager123!`);
+
+  const userTech1 = await prisma.user.create({
+    data: {
+      id: uuidv4(),
+      email: 'tech1@gmao.local',
+      name: 'Jean Dupont',
+      password: techPassword,
+      role: 'TECHNICIAN',
+      isActive: true,
+      mustChangePassword: false,
+    },
+  });
+  console.log(`  ✓ ${userTech1.name} (${userTech1.role}) - tech1@gmao.local / Tech123!`);
+
+  const userTech2 = await prisma.user.create({
+    data: {
+      id: uuidv4(),
+      email: 'tech2@gmao.local',
+      name: 'Marie Martin',
+      password: techPassword,
+      role: 'TECHNICIAN',
+      isActive: true,
+      mustChangePassword: false,
+    },
+  });
+  console.log(`  ✓ ${userTech2.name} (${userTech2.role}) - tech2@gmao.local / Tech123!`);
+
+  const userStock = await prisma.user.create({
+    data: {
+      id: uuidv4(),
+      email: 'stock@gmao.local',
+      name: 'Sophie Leroy',
+      password: stockPassword,
+      role: 'STOCK_MANAGER',
+      isActive: true,
+      mustChangePassword: false,
+    },
+  });
+  console.log(`  ✓ ${userStock.name} (${userStock.role}) - stock@gmao.local / Stock123!`);
+
+  console.log('\n✅ 5 utilisateurs créés\n');
+
+  // 1. CRÉER LES TECHNICIENS
   console.log('👷 Création des techniciens...\n');
   
   const techniciens = [];
@@ -649,8 +728,128 @@ async function main() {
   console.log(`  ✓ 3 mouvements de stock enregistrés`);
 
   console.log(`\n📦 ${parts.length} pièces créées`);
+
+  // CRÉER DES DEMANDES DE PIÈCES DE TEST
+  console.log('\n📋 Création des demandes de pièces...\n');
+
+  // Récupérer quelques interventions existantes
+  const existingWorkOrders = await prisma.workOrder.findMany({
+    take: 5,
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // Demande en attente (PENDING) - liée à un OT
+  if (existingWorkOrders.length > 0) {
+    const partRequest1 = await prisma.partRequest.create({
+      data: {
+        id: uuidv4(),
+        partId: partFiltre.id,
+        quantity: 2,
+        requestedById: userTech1.id,
+        reason: 'Remplacement préventif des filtres sur la ligne CNC',
+        urgency: 'NORMAL',
+        workOrderId: existingWorkOrders[0].id,
+        assetId: existingWorkOrders[0].assetId,
+        status: 'PENDING',
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // Il y a 2 jours
+      },
+    });
+    console.log(`  ✓ Demande PENDING: ${partFiltre.name} x2 (par ${userTech1.name})`);
+  }
+
+  // Demande urgente en attente
+  const partRequest2 = await prisma.partRequest.create({
+    data: {
+      id: uuidv4(),
+      partId: partRoulement.id,
+      quantity: 1,
+      requestedById: userTech2.id,
+      reason: 'Roulement défaillant sur presse hydraulique - machine à l\'arrêt',
+      urgency: 'CRITICAL',
+      status: 'PENDING',
+      createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // Il y a 1 heure
+    },
+  });
+  console.log(`  ✓ Demande PENDING CRITIQUE: ${partRoulement.name} x1 (par ${userTech2.name})`);
+
+  // Demande approuvée (en attente de livraison)
+  const partRequest3 = await prisma.partRequest.create({
+    data: {
+      id: uuidv4(),
+      partId: partCourroie.id,
+      quantity: 2,
+      requestedById: userTech1.id,
+      reason: 'Courroies usées sur convoyeur',
+      urgency: 'HIGH',
+      status: 'APPROVED',
+      approvedById: userManager.id,
+      approvedAt: new Date(Date.now() - 12 * 60 * 60 * 1000), // Il y a 12 heures
+      notes: 'Approuvé - A livrer en priorité',
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Il y a 1 jour
+    },
+  });
+  console.log(`  ✓ Demande APPROVED: ${partCourroie.name} x2 (par ${userTech1.name}, approuvé par ${userManager.name})`);
+
+  // Demande livrée
+  const partRequest4 = await prisma.partRequest.create({
+    data: {
+      id: uuidv4(),
+      partId: partJoint.id,
+      quantity: 10,
+      requestedById: userTech2.id,
+      reason: 'Réfection étanchéité pompe hydraulique',
+      urgency: 'NORMAL',
+      status: 'DELIVERED',
+      approvedById: userManager.id,
+      approvedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      deliveredById: userStock.id,
+      deliveredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      notes: 'Livré au poste de travail',
+      createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+    },
+  });
+  console.log(`  ✓ Demande DELIVERED: ${partJoint.name} x10 (livrée par ${userStock.name})`);
+
+  // Demande rejetée
+  const partRequest5 = await prisma.partRequest.create({
+    data: {
+      id: uuidv4(),
+      partId: partContacteur.id,
+      quantity: 5,
+      requestedById: userTech1.id,
+      reason: 'Stock de sécurité contacteurs',
+      urgency: 'LOW',
+      status: 'REJECTED',
+      approvedById: userManager.id,
+      approvedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      rejectionReason: 'Commande en cours chez le fournisseur, livraison prévue semaine prochaine',
+      createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
+    },
+  });
+  console.log(`  ✓ Demande REJECTED: ${partContacteur.name} x5 (rejetée)`);
+
+  console.log('\n✅ 5 demandes de pièces créées');
+
+  // RÉSUMÉ FINAL
+  console.log('\n' + '='.repeat(60));
+  console.log('📊 RÉSUMÉ DU SEED:');
+  console.log('='.repeat(60));
+  console.log(`  👥 Utilisateurs: 5 (1 Admin, 1 Manager, 2 Techniciens, 1 Stock)`);
+  console.log(`  👷 Techniciens: ${techniciens.length}`);
+  console.log(`  🏭 Structure hiérarchique: 1 Site > 2 Bâtiments > 3 Lignes > ${machines.length} Machines`);
+  console.log(`  📦 Pièces détachées: ${parts.length}`);
+  console.log(`  🔧 Interventions: ${workOrderCount}`);
+  console.log(`  📋 Demandes de pièces: 5 (2 en attente, 1 approuvée, 1 livrée, 1 rejetée)`);
+  console.log('='.repeat(60));
+  console.log('\n🔐 COMPTES DE TEST:');
+  console.log('  • admin@gmao.local / Admin123!     (Administrateur)');
+  console.log('  • manager@gmao.local / Manager123! (Manager)');
+  console.log('  • tech1@gmao.local / Tech123!      (Technicien)');
+  console.log('  • tech2@gmao.local / Tech123!      (Technicien)');
+  console.log('  • stock@gmao.local / Stock123!     (Gestionnaire Stock)');
+  console.log('='.repeat(60));
   
-  console.log('\n🎉 Seed avec hiérarchie terminé avec succès!\n');
+  console.log('\n🎉 Seed terminé avec succès!\n');
 }
 
 main()

@@ -27,9 +27,7 @@ export type CreatePartInput = z.infer<typeof createPartSchema>;
 
 export const addStockMovementSchema = z.object({
   partId: z.string().min(1, "La pièce est requise"),
-  type: z.enum(['IN', 'OUT'], {
-    errorMap: () => ({ message: "Le type doit être 'IN' ou 'OUT'" })
-  }),
+  type: z.enum(['IN', 'OUT']),
   quantity: z.coerce.number().min(1, "La quantité doit être supérieure à 0"),
   reason: z.string().optional(),
   reference: z.string().optional(),

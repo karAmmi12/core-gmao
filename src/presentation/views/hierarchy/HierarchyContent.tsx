@@ -12,7 +12,6 @@ import {
   Badge,
   LinkButton,
   EmptyState,
-  Section,
 } from '@/components';
 import { ASSET_TYPES, STATUS_CONFIG, cn, type AssetStatus } from '@/styles/design-system';
 import type { AssetTreeDTO } from '@/core/application/dto/AssetDTO';

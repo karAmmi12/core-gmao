@@ -69,7 +69,16 @@ test-*.js
 fix-*.mjs
 final-test.mjs
 
-# Documentation de développement (garder seulement README.md)
+# Documentation de développement (garder seulement README.md principal)
 PHASE*.md
 ARCHITECTURE.md
 CODE_AUDIT_REPORT.md
+CLEAN_ARCHITECTURE_AUDIT.md
+RAPPORT_TESTS.md
+PERMISSIONS_*.md
+FRONTEND_*.md
+DESIGN_SYSTEM.md
+IMPROVEMENTS_*.md
+BUGFIX_*.md
+/docs/
+/src/presentation/README.md

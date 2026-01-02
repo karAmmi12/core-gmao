@@ -87,7 +87,7 @@ export const AssetInterventionHistory = ({ history, assetId }: AssetIntervention
                   <td className="p-4">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-neutral-700">{order.title}</span>
-                      {hasParts && (
+                      {hasParts && order.parts && (
                         <Badge variant="neutral" icon={<Package size={10} />}>
                           {order.parts.length}
                         </Badge>
@@ -125,7 +125,9 @@ export const AssetInterventionHistory = ({ history, assetId }: AssetIntervention
                     )}
 
                     {(order.status === 'DRAFT' || order.status === 'PLANNED' || order.status === 'IN_PROGRESS') && (
-                      <form action={completeWorkOrderAction}>
+                      <form action={async (formData: FormData) => {
+                        await completeWorkOrderAction(formData);
+                      }}>
                         <input type="hidden" name="workOrderId" value={order.id} />
                         <input type="hidden" name="assetPath" value={`/assets/${assetId}`} />
                         <Button

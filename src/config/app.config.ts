@@ -19,3 +19,10 @@ export const appConfig = {
 } as const;
 
 export type AppConfig = typeof appConfig;
+
+// Export pour compatibilité
+export const APP_CONFIG = {
+  name: appConfig.app.name,
+  description: appConfig.app.description,
+  version: appConfig.app.version,
+};

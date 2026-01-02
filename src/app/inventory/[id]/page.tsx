@@ -2,9 +2,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Package, AlertTriangle, DollarSign, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
 import DIContainer from '@/core/infrastructure/di/DIContainer';
-import { Card } from '@/components';
-import { Badge } from '@/components';
-import { Button } from '@/components';
+import { Card, Badge, Button } from '@/components';
+import { MainLayout } from '@/components/layouts/MainLayout';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,9 +31,10 @@ export default async function PartDetailPage({ params }: PageProps) {
     : { label: 'OK', variant: 'success' as const };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <MainLayout>
+      <div className="container mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/inventory">
             <Button variant="outline" size="sm">
@@ -183,7 +183,7 @@ export default async function PartDetailPage({ params }: PageProps) {
                         {movement.reason || '-'}
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-semibold">
-                        {movement.stockAfter}
+                        {movement.stockAfter ?? '-'}
                       </td>
                     </tr>
                   );
@@ -213,6 +213,7 @@ export default async function PartDetailPage({ params }: PageProps) {
           </div>
         </Card>
       )}
-    </div>
+      </div>
+    </MainLayout>
   );
 }
