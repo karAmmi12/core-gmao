@@ -23,6 +23,7 @@ export interface WorkOrderRepository {
     save(order: WorkOrder): Promise<void>;
     findAll(): Promise<WorkOrder[]>;
     findByAssetId(assetId: string): Promise<WorkOrder[]>;
+    findByAssignedTo(technicianId: string): Promise<WorkOrder[]>;
     findById(id:string): Promise<WorkOrder | null>;
     update(order: WorkOrder): Promise<void>;
     countPending(): Promise<number>;

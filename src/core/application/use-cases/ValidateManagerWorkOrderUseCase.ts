@@ -1,0 +1,54 @@
+import { WorkOrderRepository } from '@/core/domain/repositories/WorkOrderRepository';
+import { IWorkOrderPartRepository } from '@/core/domain/repositories/WorkOrderPartRepository';
+
+export interface ValidateWorkOrderByManagerInput {
+  workOrderId: string;
+  managerId: string;
+  laborCost: number;
+  materialCostAdjustment?: number; // Ajustement manuel optionnel du coût matériel
+  validationNotes?: string;
+}
+
+export class ValidateManagerWorkOrderUseCase {
+  constructor(
+    private workOrderRepo: WorkOrderRepository,
+    private workOrderPartRepo?: IWorkOrderPartRepository
+  ) {}
+
+  async execute(input: ValidateWorkOrderByManagerInput): Promise<void> {
+    const workOrder = await this.workOrderRepo.findById(input.workOrderId);
+    
+    if (!workOrder) {
+      throw new Error('Intervention non trouvée.');
+    }
+
+    // Calculer le coût matériel à partir des pièces consommées
+    let materialCost = 0;
+    if (this.workOrderPartRepo) {
+      const parts = await this.workOrderPartRepo.findByWorkOrderId(input.workOrderId);
+      // Sommer les totalPrice des pièces avec status CONSUMED
+      materialCost = parts
+        .filter(p => p.status === 'CONSUMED')
+        .reduce((sum, p) => sum + p.totalPrice, 0);
+    }
+
+    // Appliquer un ajustement manuel si fourni (pour frais supplémentaires, remises, etc.)
+    if (input.materialCostAdjustment !== undefined) {
+      materialCost += input.materialCostAdjustment;
+    }
+
+    // Valider l'intervention avec les coûts
+    workOrder.validateByManager(input.managerId, {
+      laborCost: input.laborCost,
+      materialCost,
+    });
+
+    // Si des notes de validation sont ajoutées
+    if (input.validationNotes) {
+      const currentDescription = workOrder.description || '';
+      (workOrder as any).description = `${currentDescription}\n\n[Validation manager]\n${input.validationNotes}`.trim();
+    }
+
+    await this.workOrderRepo.update(workOrder);
+  }
+}

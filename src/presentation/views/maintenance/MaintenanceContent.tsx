@@ -30,11 +30,12 @@ import { executeMaintenanceScheduleAction, updateMaintenanceReadingAction } from
 
 interface MaintenanceContentProps {
   schedules: MaintenanceScheduleDTO[];
+  userRole: string;
 }
 
 type TypeFilter = '' | 'TIME_BASED' | 'THRESHOLD_BASED';
 
-export function MaintenanceContent({ schedules }: MaintenanceContentProps) {
+export function MaintenanceContent({ schedules, userRole }: MaintenanceContentProps) {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('');
   const [executing, setExecuting] = useState<string | null>(null);
@@ -93,9 +94,11 @@ export function MaintenanceContent({ schedules }: MaintenanceContentProps) {
         description="Plannings de maintenance préventive et prédictive"
         icon="🔧"
         actions={
-          <LinkButton href="/maintenance/new" variant="primary" icon="➕">
-            Nouveau planning
-          </LinkButton>
+          (userRole === 'MANAGER' || userRole === 'ADMIN') && (
+            <LinkButton href="/maintenance/new" variant="primary" icon="➕">
+              Nouveau planning
+            </LinkButton>
+          )
         }
       />
 
@@ -180,11 +183,11 @@ export function MaintenanceContent({ schedules }: MaintenanceContentProps) {
               <Button variant="secondary" onClick={resetFilters}>
                 Réinitialiser
               </Button>
-            ) : (
+            ) : (userRole === 'MANAGER' || userRole === 'ADMIN') ? (
               <LinkButton href="/maintenance/new" variant="primary">
                 Créer un planning
               </LinkButton>
-            )
+            ) : undefined
           }
         />
       ) : (
@@ -197,6 +200,7 @@ export function MaintenanceContent({ schedules }: MaintenanceContentProps) {
               onExecute={handleExecute}
               onUpdateReading={() => setUpdatingReading(schedule)}
               executing={executing === schedule.id}
+              userRole={userRole}
             />
           ))}
         </div>
@@ -223,11 +227,13 @@ interface ScheduleCardProps {
   onExecute: (id: string) => void;
   onUpdateReading: () => void;
   executing: boolean;
+  userRole: string;
 }
 
-function ScheduleCard({ schedule, getFrequencyLabel, onExecute, onUpdateReading, executing }: ScheduleCardProps) {
+function ScheduleCard({ schedule, getFrequencyLabel, onExecute, onUpdateReading, executing, userRole }: ScheduleCardProps) {
   const isTimeBased = schedule.triggerType === 'TIME_BASED';
   const isThresholdBased = schedule.triggerType === 'THRESHOLD_BASED';
+  const canManage = userRole === 'MANAGER' || userRole === 'ADMIN';
 
   return (
     <Card>
@@ -336,32 +342,34 @@ function ScheduleCard({ schedule, getFrequencyLabel, onExecute, onUpdateReading,
         </div>
 
         {/* Actions */}
-        <div className="flex flex-col gap-2 shrink-0">
-          {schedule.isDue && schedule.isActive && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => onExecute(schedule.id)}
-              loading={executing}
-            >
-              Générer intervention
-            </Button>
-          )}
-          
-          {isThresholdBased && schedule.isActive && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onUpdateReading}
-            >
-              📝 Mettre à jour compteur
-            </Button>
-          )}
-          
-          <LinkButton href={`/maintenance/${schedule.id}/edit`} variant="outline" size="sm">
-            Modifier
-          </LinkButton>
-        </div>
+        {canManage && (
+          <div className="flex flex-col gap-2 shrink-0">
+            {schedule.isDue && schedule.isActive && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => onExecute(schedule.id)}
+                loading={executing}
+              >
+                Générer intervention
+              </Button>
+            )}
+            
+            {isThresholdBased && schedule.isActive && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onUpdateReading}
+              >
+                📝 Mettre à jour compteur
+              </Button>
+            )}
+            
+            <LinkButton href={`/maintenance/${schedule.id}/edit`} variant="outline" size="sm">
+              Modifier
+            </LinkButton>
+          </div>
+        )}
       </div>
     </Card>
   );

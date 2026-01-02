@@ -50,6 +50,7 @@ export const authOptions: AuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
+          technicianId: user.technicianId, // Pour filtrer les interventions assignées
           permissions: getPermissions(user.role),
           mustChangePassword: user.mustChangePassword,
         };
@@ -71,6 +72,7 @@ export const authOptions: AuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.role = user.role;
+        token.technicianId = user.technicianId;
         token.permissions = user.permissions;
         token.mustChangePassword = user.mustChangePassword;
       }
@@ -82,6 +84,7 @@ export const authOptions: AuthOptions = {
         email: token.email,
         name: token.name,
         role: token.role,
+        technicianId: token.technicianId,
         permissions: token.permissions,
         mustChangePassword: token.mustChangePassword,
       };

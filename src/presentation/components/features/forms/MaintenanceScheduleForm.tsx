@@ -11,10 +11,13 @@ import { TechnicianDTO } from '@/core/application/dto/TechnicianDTO';
 import { LAYOUT_STYLES, cn } from '@/styles/design-system';
 import { Clock, Activity, Info } from 'lucide-react';
 
+import { MaintenanceScheduleDTO } from '@/core/application/dto/MaintenanceScheduleDTO';
+
 interface MaintenanceScheduleFormProps {
   assets: AssetDTO[];
   technicians: TechnicianDTO[];
   createAction: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
+  existingSchedule?: MaintenanceScheduleDTO;
 }
 
 // Métriques prédéfinies pour faciliter la saisie
@@ -29,12 +32,16 @@ const PREDEFINED_METRICS = [
   { label: 'Autre...', unit: '' },
 ];
 
-export function MaintenanceScheduleForm({ assets, technicians, createAction }: MaintenanceScheduleFormProps) {
+export function MaintenanceScheduleForm({ assets, technicians, createAction, existingSchedule }: MaintenanceScheduleFormProps) {
   const router = useRouter();
-  const [triggerType, setTriggerType] = useState<'TIME_BASED' | 'THRESHOLD_BASED'>('TIME_BASED');
-  const [selectedMetric, setSelectedMetric] = useState('');
+  const isEditMode = !!existingSchedule;
+  
+  const [triggerType, setTriggerType] = useState<'TIME_BASED' | 'THRESHOLD_BASED'>(
+    existingSchedule?.triggerType || 'TIME_BASED'
+  );
+  const [selectedMetric, setSelectedMetric] = useState(existingSchedule?.thresholdMetric || '');
   const [customMetric, setCustomMetric] = useState('');
-  const [thresholdUnit, setThresholdUnit] = useState('');
+  const [thresholdUnit, setThresholdUnit] = useState(existingSchedule?.thresholdUnit || '');
   
   const [state, formAction, isPending] = useActionState(createAction, {
     success: false,
@@ -62,6 +69,7 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
   return (
     <form action={formAction}>
       {/* Hidden fields */}
+      {isEditMode && <input type="hidden" name="scheduleId" value={existingSchedule.id} />}
       <input type="hidden" name="triggerType" value={triggerType} />
       <input type="hidden" name="maintenanceType" value={maintenanceType} />
       {triggerType === 'THRESHOLD_BASED' && (
@@ -76,15 +84,23 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
         <Card>
           <h3 className="text-lg font-semibold mb-4">Type de maintenance</h3>
           
+          {isEditMode && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+              ⚠️ Le type de maintenance ne peut pas être modifié après la création.
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
               type="button"
-              onClick={() => setTriggerType('TIME_BASED')}
+              onClick={() => !isEditMode && setTriggerType('TIME_BASED')}
+              disabled={isEditMode}
               className={cn(
                 'p-4 rounded-lg border-2 text-left transition-all',
                 triggerType === 'TIME_BASED'
                   ? 'border-primary-500 bg-primary-50'
-                  : 'border-neutral-200 hover:border-neutral-300'
+                  : 'border-neutral-200 hover:border-neutral-300',
+                isEditMode && 'opacity-50 cursor-not-allowed'
               )}
             >
               <div className="flex items-center gap-3 mb-2">
@@ -106,12 +122,14 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
 
             <button
               type="button"
-              onClick={() => setTriggerType('THRESHOLD_BASED')}
+              onClick={() => !isEditMode && setTriggerType('THRESHOLD_BASED')}
+              disabled={isEditMode}
               className={cn(
                 'p-4 rounded-lg border-2 text-left transition-all',
                 triggerType === 'THRESHOLD_BASED'
                   ? 'border-primary-500 bg-primary-50'
-                  : 'border-neutral-200 hover:border-neutral-300'
+                  : 'border-neutral-200 hover:border-neutral-300',
+                isEditMode && 'opacity-50 cursor-not-allowed'
               )}
             >
               <div className="flex items-center gap-3 mb-2">
@@ -142,7 +160,13 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
               <label htmlFor="assetId" className="block text-sm font-medium text-neutral-700 mb-1">
                 Équipement <span className="text-red-500">*</span>
               </label>
-              <Select id="assetId" name="assetId" required>
+              <Select 
+                id="assetId" 
+                name="assetId" 
+                required
+                defaultValue={existingSchedule?.assetId}
+                disabled={isEditMode}
+              >
                 <option value="">Sélectionnez un équipement</option>
                 {assets.map((asset) => (
                   <option key={asset.id} value={asset.id}>
@@ -150,6 +174,11 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
                   </option>
                 ))}
               </Select>
+              {isEditMode && (
+                <p className="text-xs text-neutral-500 mt-1">
+                  L'équipement ne peut pas être modifié
+                </p>
+              )}
               {state?.errors?.assetId && (
                 <p className="text-red-600 text-sm mt-1">{state.errors.assetId}</p>
               )}
@@ -167,6 +196,7 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
                   ? "ex: Vérification mensuelle des filtres"
                   : "ex: Vidange moteur à 500h"
                 }
+                defaultValue={existingSchedule?.title}
                 required
               />
               {state?.errors?.title && (
@@ -183,6 +213,7 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
                 name="description"
                 rows={3}
                 placeholder="Détails de la maintenance..."
+                defaultValue={existingSchedule?.description}
               />
             </div>
           </div>
@@ -202,7 +233,12 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
                   <label htmlFor="frequency" className="block text-sm font-medium text-neutral-700 mb-1">
                     Fréquence <span className="text-red-500">*</span>
                   </label>
-                  <Select id="frequency" name="frequency" required>
+                  <Select 
+                    id="frequency" 
+                    name="frequency" 
+                    required
+                    defaultValue={existingSchedule?.frequency}
+                  >
                     <option value="DAILY">Quotidien</option>
                     <option value="WEEKLY">Hebdomadaire</option>
                     <option value="MONTHLY">Mensuel</option>
@@ -224,7 +260,7 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
                     type="number"
                     min="1"
                     max="100"
-                    defaultValue="1"
+                    defaultValue={existingSchedule?.intervalValue || 1}
                     required
                   />
                   <p className="text-xs text-neutral-500 mt-1">
@@ -241,6 +277,7 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
                   id="nextDueDate"
                   name="nextDueDate"
                   type="date"
+                  defaultValue={existingSchedule?.nextDueDate ? new Date(existingSchedule.nextDueDate).toISOString().split('T')[0] : undefined}
                   required
                 />
                 {state?.errors?.nextDueDate && (
@@ -302,6 +339,7 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
                       type="number"
                       min="1"
                       placeholder="500"
+                      defaultValue={existingSchedule?.thresholdValue}
                       required={triggerType === 'THRESHOLD_BASED'}
                       className="flex-1"
                     />
@@ -329,7 +367,7 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
                     name="currentValue"
                     type="number"
                     min="0"
-                    defaultValue="0"
+                    defaultValue={existingSchedule?.currentValue || 0}
                     placeholder="0"
                   />
                   <p className="text-xs text-neutral-500 mt-1">
@@ -357,6 +395,7 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
                 step="0.5"
                 min="0"
                 placeholder="2.5"
+                defaultValue={existingSchedule?.estimatedDuration}
               />
             </div>
 
@@ -364,7 +403,11 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
               <label htmlFor="assignedToId" className="block text-sm font-medium text-neutral-700 mb-1">
                 Technicien assigné
               </label>
-              <Select id="assignedToId" name="assignedToId">
+              <Select 
+                id="assignedToId" 
+                name="assignedToId"
+                defaultValue={existingSchedule?.assignedToId || ''}
+              >
                 <option value="">Non assigné</option>
                 {technicians.map((tech) => (
                   <option key={tech.id} value={tech.id}>
@@ -379,7 +422,11 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
             <label htmlFor="priority" className="block text-sm font-medium text-neutral-700 mb-1">
               Priorité
             </label>
-            <Select id="priority" name="priority" defaultValue="LOW">
+            <Select 
+              id="priority" 
+              name="priority" 
+              defaultValue={existingSchedule?.priority || 'LOW'}
+            >
               <option value="LOW">Normale</option>
               <option value="HIGH">Haute</option>
             </Select>
@@ -393,7 +440,10 @@ export function MaintenanceScheduleForm({ assets, technicians, createAction }: M
 
         <div className={cn(LAYOUT_STYLES.flexRow, 'pt-4')}>
           <Button type="submit" disabled={isPending}>
-            {isPending ? 'Création...' : 'Créer le planning'}
+            {isPending 
+              ? (isEditMode ? 'Modification...' : 'Création...') 
+              : (isEditMode ? 'Enregistrer les modifications' : 'Créer le planning')
+            }
           </Button>
           <Button
             type="button"

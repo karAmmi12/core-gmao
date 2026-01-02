@@ -102,6 +102,41 @@ export class PrismaWorkOrderRepository implements WorkOrderRepository {
     );
   }
 
+  async findByAssignedTo(technicianId: string): Promise<WorkOrder[]> {
+    const rawOrders = await prisma.workOrder.findMany({ 
+      where: { assignedToId: technicianId },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    return rawOrders.map(o => 
+      WorkOrder.restore(
+        o.id,
+        o.title,
+        o.description ?? undefined,
+        o.status as OrderStatus,
+        o.priority as OrderPriority,
+        (o.type || 'CORRECTIVE') as MaintenanceType,
+        o.assetId,
+        undefined, // scheduleId
+        o.createdAt,
+        o.scheduledAt ?? undefined,
+        o.startedAt ?? undefined,
+        o.completedAt ?? undefined,
+        o.estimatedDuration ?? undefined,
+        o.actualDuration ?? undefined,
+        o.assignedToId ?? undefined,
+        o.laborCost,
+        o.materialCost,
+        o.totalCost,
+        o.estimatedCost ?? undefined,
+        o.requiresApproval,
+        o.approvedById ?? undefined,
+        o.approvedAt ?? undefined,
+        o.rejectionReason ?? undefined
+      )
+    );
+  }
+
   async findById(id: string): Promise<WorkOrder | null> {
     const raw = await prisma.workOrder.findUnique({ where: { id } });
     if (!raw) return null;

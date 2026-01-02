@@ -366,3 +366,137 @@ export async function rejectWorkOrderAction(
     };
   }
 }
+
+// =============================================================================
+// COMPLETE WORK ORDER BY TECHNICIAN - Le technicien termine l'intervention
+// =============================================================================
+
+export async function completeWorkOrderByTechnicianAction(
+  workOrderId: string,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return { success: false, error: 'Non authentifié' };
+    }
+
+    // Seuls les techniciens peuvent terminer une intervention
+    if (session.user.role !== 'TECHNICIAN') {
+      return { 
+        success: false, 
+        error: 'Seul un technicien peut terminer une intervention' 
+      };
+    }
+
+    const actualDuration = parseInt(formData.get('actualDuration') as string);
+    const notes = (formData.get('notes') as string) || undefined;
+
+    if (!actualDuration || actualDuration <= 0) {
+      return { 
+        success: false, 
+        error: 'La durée réelle doit être supérieure à 0' 
+      };
+    }
+
+    // Vérifier que le technicien a un technicianId
+    if (!session.user.technicianId) {
+      return { 
+        success: false, 
+        error: 'Profil technicien non trouvé' 
+      };
+    }
+
+    // Exécuter le use case
+    const { CompleteTechnicianWorkOrderUseCase } = await import(
+      '@/core/application/use-cases/CompleteTechnicianWorkOrderUseCase'
+    );
+    const workOrderRepo = DIContainer.getWorkOrderRepository();
+    const workOrderPartRepo = DIContainer.getWorkOrderPartRepository();
+    const useCase = new CompleteTechnicianWorkOrderUseCase(workOrderRepo, workOrderPartRepo);
+
+    await useCase.execute({
+      workOrderId,
+      technicianId: session.user.technicianId,
+      actualDuration,
+      notes,
+    });
+
+    revalidatePath('/work-orders');
+    revalidatePath(`/work-orders/${workOrderId}`);
+    return { 
+      success: true
+    };
+  } catch (error: any) {
+    console.error('Erreur completion intervention:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Erreur lors de la complétion de l\'intervention' 
+    };
+  }
+}
+
+// =============================================================================
+// VALIDATE WORK ORDER BY MANAGER - Le manager valide l'intervention
+// =============================================================================
+
+export async function validateWorkOrderByManagerAction(
+  workOrderId: string,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return { success: false, error: 'Non authentifié' };
+    }
+
+    // Seuls les managers/admins peuvent valider
+    if (session.user.role !== 'MANAGER' && session.user.role !== 'ADMIN') {
+      return { 
+        success: false, 
+        error: 'Seul un manager ou administrateur peut valider une intervention' 
+      };
+    }
+
+    const laborCost = parseFloat(formData.get('laborCost') as string) || 0;
+    const materialCostAdjustment = formData.get('materialCostAdjustment') 
+      ? parseFloat(formData.get('materialCostAdjustment') as string) 
+      : undefined;
+    const validationNotes = (formData.get('validationNotes') as string) || undefined;
+
+    if (laborCost < 0) {
+      return { 
+        success: false, 
+        error: 'Le coût de main d\'œuvre ne peut pas être négatif' 
+      };
+    }
+
+    // Exécuter le use case
+    const { ValidateManagerWorkOrderUseCase } = await import(
+      '@/core/application/use-cases/ValidateManagerWorkOrderUseCase'
+    );
+    const workOrderRepo = DIContainer.getWorkOrderRepository();
+    const workOrderPartRepo = DIContainer.getWorkOrderPartRepository();
+    const useCase = new ValidateManagerWorkOrderUseCase(workOrderRepo, workOrderPartRepo);
+
+    await useCase.execute({
+      workOrderId,
+      managerId: session.user.id,
+      laborCost,
+      materialCostAdjustment,
+      validationNotes,
+    });
+
+    revalidatePath('/work-orders');
+    revalidatePath(`/work-orders/${workOrderId}`);
+    return { 
+      success: true
+    };
+  } catch (error: any) {
+    console.error('Erreur validation intervention:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Erreur lors de la validation de l\'intervention' 
+    };
+  }
+}

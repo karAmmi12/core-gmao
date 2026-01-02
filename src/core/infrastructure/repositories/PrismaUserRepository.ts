@@ -22,6 +22,7 @@ export class PrismaUserRepository implements UserRepository {
       createdAt: data.createdAt,
       createdById: data.createdById ?? undefined,
       updatedAt: data.updatedAt,
+      technicianId: data.technicianId ?? undefined,
     });
   }
 
@@ -41,6 +42,7 @@ export class PrismaUserRepository implements UserRepository {
       lockedUntil: user.lockedUntil ?? null,
       createdById: user.createdById ?? null,
       updatedAt: user.updatedAt,
+      technicianId: user.technicianId ?? null,
     };
   }
 

@@ -19,6 +19,7 @@ export interface UserProps {
   createdAt?: Date;
   createdById?: string;
   updatedAt?: Date;
+  technicianId?: string;
 }
 
 export class User {
@@ -37,7 +38,8 @@ export class User {
     public readonly lockedUntil: Date | undefined,
     public readonly createdAt: Date,
     public readonly createdById: string | undefined,
-    public readonly updatedAt: Date
+    public readonly updatedAt: Date,
+    public readonly technicianId: string | undefined
   ) {}
 
   // ==========================================================================
@@ -72,7 +74,8 @@ export class User {
       undefined,
       now,
       props.createdById,
-      now
+      now,
+      undefined // technicianId
     );
   }
 
@@ -102,7 +105,8 @@ export class User {
       undefined,
       now,
       undefined,
-      now
+      now,
+      undefined // technicianId
     );
   }
 
@@ -125,7 +129,8 @@ export class User {
       props.lockedUntil,
       props.createdAt || new Date(),
       props.createdById,
-      props.updatedAt || new Date()
+      props.updatedAt || new Date(),
+      props.technicianId
     );
   }
 
@@ -182,7 +187,8 @@ export class User {
       undefined,
       this.createdAt,
       this.createdById,
-      new Date()
+      new Date(),
+      this.technicianId
     );
   }
 
@@ -207,7 +213,8 @@ export class User {
       undefined,
       this.createdAt,
       this.createdById,
-      new Date()
+      new Date(),
+      this.technicianId
     );
   }
 
@@ -230,7 +237,8 @@ export class User {
       undefined, // Unlock
       this.createdAt,
       this.createdById,
-      new Date()
+      new Date(),
+      this.technicianId
     );
   }
 
@@ -262,7 +270,8 @@ export class User {
       lockedUntil,
       this.createdAt,
       this.createdById,
-      new Date()
+      new Date(),
+      this.technicianId
     );
   }
 
@@ -289,7 +298,8 @@ export class User {
       undefined,
       this.createdAt,
       this.createdById,
-      now
+      now,
+      this.technicianId
     );
   }
 
@@ -312,7 +322,8 @@ export class User {
       this.lockedUntil,
       this.createdAt,
       this.createdById,
-      new Date()
+      new Date(),
+      this.technicianId
     );
   }
 
@@ -335,7 +346,8 @@ export class User {
       this.lockedUntil,
       this.createdAt,
       this.createdById,
-      new Date()
+      new Date(),
+      this.technicianId
     );
   }
 }

@@ -3,9 +3,10 @@ import { CompleteWorkOrderUseCase } from "@/core/application/use-cases/CompleteW
 
 export class WorkOrderService {
   private orderRepo = DIContainer.getWorkOrderRepository();
+  private workOrderPartRepo = DIContainer.getWorkOrderPartRepository();
 
   async completeWorkOrder(workOrderId: string) {
-    const useCase = new CompleteWorkOrderUseCase(this.orderRepo);
+    const useCase = new CompleteWorkOrderUseCase(this.orderRepo, this.workOrderPartRepo);
     return useCase.execute(workOrderId);
   }
 }

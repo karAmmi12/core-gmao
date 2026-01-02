@@ -17,7 +17,9 @@ import {
 } from '@/app/actions';
 import {
   approveWorkOrderAction,
-  rejectWorkOrderAction
+  rejectWorkOrderAction,
+  completeWorkOrderByTechnicianAction,
+  validateWorkOrderByManagerAction
 } from '@/app/work-orders/actions';
 import {
   Card,
@@ -327,6 +329,14 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
   const [rejectState, setRejectState] = useState<{ error?: string; success?: boolean } | null>(null);
   const [isRejecting, setIsRejecting] = useState(false);
 
+  // Technician complete action (new workflow)
+  const [techCompleteState, setTechCompleteState] = useState<{ error?: string; success?: boolean } | null>(null);
+  const [isTechCompleting, setIsTechCompleting] = useState(false);
+
+  // Manager validate action (new workflow)
+  const [managerValidateState, setManagerValidateState] = useState<{ error?: string; success?: boolean } | null>(null);
+  const [isManagerValidating, setIsManagerValidating] = useState(false);
+
   const statusConfig = STATUS_CONFIG[workOrder.status];
   const priorityConfig = PRIORITY_CONFIG[workOrder.priority];
   const StatusIcon = statusConfig.icon;
@@ -336,6 +346,20 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
   const isCancelled = workOrder.status === 'CANCELLED';
   const isRejected = workOrder.status === 'REJECTED';
   const isPending = workOrder.status === 'PENDING';
+  
+  // Nouveau workflow: déterminer si technicien peut terminer ou manager peut valider
+  const isTechnician = userRole === 'TECHNICIAN';
+  const isManager = userRole === 'MANAGER' || userRole === 'ADMIN';
+  const technicianId = session?.user?.technicianId;
+  const isAssignedTechnician = technicianId && workOrder.assignedToId === technicianId;
+  
+  // Technicien peut terminer si : intervention EN COURS + il est assigné
+  const canTechnicianComplete = isTechnician && isAssignedTechnician && workOrder.status === 'IN_PROGRESS';
+  
+  // Manager peut valider si : intervention TERMINÉE + coûts pas encore enregistrés
+  // On vérifie que laborCost et materialCost sont à 0 (valeurs par défaut)
+  const hasNoCostsYet = workOrder.laborCost === 0 && workOrder.materialCost === 0;
+  const canManagerValidate = isManager && workOrder.status === 'COMPLETED' && hasNoCostsYet;
 
   // Handle start
   const handleStart = async () => {
@@ -383,6 +407,28 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
     setRejectState(result);
     setIsRejecting(false);
     setShowRejectModal(false);
+    if (result?.success) {
+      router.refresh();
+    }
+  };
+
+  // Handle technician complete (new workflow)
+  const handleTechnicianComplete = async (formData: FormData) => {
+    setIsTechCompleting(true);
+    const result = await completeWorkOrderByTechnicianAction(workOrder.id, formData);
+    setTechCompleteState(result);
+    setIsTechCompleting(false);
+    if (result?.success) {
+      router.refresh();
+    }
+  };
+
+  // Handle manager validate (new workflow)
+  const handleManagerValidate = async (formData: FormData) => {
+    setIsManagerValidating(true);
+    const result = await validateWorkOrderByManagerAction(workOrder.id, formData);
+    setManagerValidateState(result);
+    setIsManagerValidating(false);
     if (result?.success) {
       router.refresh();
     }
@@ -663,44 +709,42 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
         </Card>
 
         {/* Complete Form (if in progress) */}
-        {canComplete && (
+        {canTechnicianComplete && (
           <Card>
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <CheckCircle size={20} className="text-success-600" />
-              Compléter l'intervention
+              Terminer l'intervention
             </h3>
 
-            <form action={completeAction} className="space-y-4">
-              <input type="hidden" name="workOrderId" value={workOrder.id} />
+            <div className="mb-4">
+              <Alert variant="primary">
+                <p className="text-sm">
+                  En tant que technicien, vous pouvez marquer cette intervention comme terminée. 
+                  Un manager devra ensuite valider et enregistrer les coûts.
+                </p>
+              </Alert>
+            </div>
 
-              <div className={LAYOUT_STYLES.grid2}>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">
-                    Durée réelle (minutes) <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="number"
-                    name="actualDuration"
-                    min="1"
-                    placeholder="60"
-                    required
-                    disabled={isCompleting}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">
-                    Coût main d'œuvre (€)
-                  </label>
-                  <Input
-                    type="number"
-                    name="laborCost"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    disabled={isCompleting}
-                  />
-                </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              await handleTechnicianComplete(formData);
+            }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  Durée réelle (minutes) <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="number"
+                  name="actualDuration"
+                  min="1"
+                  placeholder="60"
+                  required
+                  disabled={isTechCompleting}
+                />
+                <p className="mt-1 text-xs text-neutral-500">
+                  Temps réellement passé sur l'intervention
+                </p>
               </div>
 
               <div>
@@ -708,30 +752,154 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
                   Notes de completion
                 </label>
                 <Textarea
-                  name="completionNotes"
-                  placeholder="Ajoutez des notes sur l'intervention..."
+                  name="notes"
+                  placeholder="Décrivez le travail effectué, les observations, etc..."
                   rows={4}
-                  disabled={isCompleting}
+                  disabled={isTechCompleting}
                 />
               </div>
 
-              {completeState?.error && (
-                <Alert variant="danger">{completeState.error}</Alert>
+              {techCompleteState?.error && (
+                <Alert variant="danger">{techCompleteState.error}</Alert>
+              )}
+              
+              {techCompleteState?.success && (
+                <Alert variant="success">
+                  Intervention terminée avec succès
+                </Alert>
               )}
 
-              <Button type="submit" loading={isCompleting} className="w-full">
+              <Button type="submit" loading={isTechCompleting} className="w-full">
                 <CheckCircle size={18} className="mr-2" />
-                Marquer comme terminée
+                Terminer l'intervention
               </Button>
             </form>
           </Card>
         )}
 
-        {isCompleted && (
+        {/* Manager Validation Form (if completed and requires approval) */}
+        {canManagerValidate && (
+          <Card>
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <ShieldCheck size={20} className="text-primary-600" />
+              Validation de l'intervention
+            </h3>
+
+            <div className="mb-4">
+              <Alert variant="warning">
+                <p className="text-sm">
+                  Cette intervention a été terminée par le technicien.
+                  Veuillez valider et enregistrer les coûts de main d'œuvre et de matériel.
+                </p>
+              </Alert>
+            </div>
+
+            {workOrder.actualDuration && (
+              <div className="mb-4 p-3 bg-neutral-50 rounded-lg">
+                <p className="text-sm text-neutral-600">
+                  <strong>Durée réelle :</strong> {workOrder.actualDuration} minutes
+                </p>
+              </div>
+            )}
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              await handleManagerValidate(formData);
+            }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  Coût main d'œuvre (€) <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="number"
+                  name="laborCost"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  required
+                  disabled={isManagerValidating}
+                />
+                <p className="mt-1 text-xs text-neutral-500">
+                  Coût de la main d'œuvre pour cette intervention
+                </p>
+              </div>
+
+              <div className="p-4 bg-neutral-50 rounded-lg border border-neutral-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-neutral-700">
+                    Coût matériel (pièces consommées)
+                  </span>
+                  <span className="text-sm font-semibold text-neutral-900">
+                    Calculé automatiquement
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-500">
+                  Le coût matériel sera calculé à partir des pièces validées/livrées pour cette intervention
+                </p>
+              </div>
+
+              <details className="border border-neutral-200 rounded-lg p-4">
+                <summary className="cursor-pointer text-sm font-medium text-neutral-700">
+                  Ajustement manuel du coût matériel (optionnel)
+                </summary>
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    Ajustement (€)
+                  </label>
+                  <Input
+                    type="number"
+                    name="materialCostAdjustment"
+                    step="0.01"
+                    placeholder="0.00"
+                    disabled={isManagerValidating}
+                  />
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Utilisez ce champ pour ajouter des frais supplémentaires ou appliquer une remise
+                  </p>
+                </div>
+              </details>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  Notes de validation
+                </label>
+                <Textarea
+                  name="validationNotes"
+                  placeholder="Commentaires sur la validation, ajustements de coûts, etc..."
+                  rows={4}
+                  disabled={isManagerValidating}
+                />
+              </div>
+
+              {managerValidateState?.error && (
+                <Alert variant="danger">{managerValidateState.error}</Alert>
+              )}
+              
+              {managerValidateState?.success && (
+                <Alert variant="success">
+                  Intervention validée avec succès
+                </Alert>
+              )}
+
+              <Button type="submit" loading={isManagerValidating} className="w-full">
+                <ShieldCheck size={18} className="mr-2" />
+                Valider et enregistrer les coûts
+              </Button>
+            </form>
+          </Card>
+        )}
+
+        {isCompleted && !canManagerValidate && (
           <Alert variant="success">
             <div className="flex items-center gap-2">
               <CheckCircle size={18} />
               Cette intervention a été terminée le {new Date(workOrder.completedAt!).toLocaleString('fr-FR')}
+              {workOrder.approvedById && workOrder.approvedAt && (
+                <span className="ml-2 text-sm">
+                  • Validée le {new Date(workOrder.approvedAt).toLocaleString('fr-FR')}
+                </span>
+              )}
             </div>
           </Alert>
         )}

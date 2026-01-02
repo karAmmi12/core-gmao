@@ -4,14 +4,60 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+// Données de référence pour la génération
+const machineTypes = [
+  { prefix: 'CNC', names: ['Tour CNC Mazak', 'Fraiseuse Fanuc', 'Centre d\'usinage DMG', 'Tour vertical Mori Seiki'], manufacturers: ['Mazak', 'Fanuc', 'DMG Mori', 'Okuma'] },
+  { prefix: 'PRS', names: ['Presse hydraulique', 'Presse plieuse', 'Presse à injection', 'Presse mécanique'], manufacturers: ['Schuler', 'Amada', 'Arburg', 'Bystronic'] },
+  { prefix: 'RBT', names: ['Robot de soudure', 'Robot d\'assemblage', 'Robot de peinture', 'Robot de manutention'], manufacturers: ['Kuka', 'ABB', 'Fanuc', 'Yaskawa'] },
+  { prefix: 'CNV', names: ['Convoyeur à bande', 'Convoyeur à rouleaux', 'Convoyeur modulaire', 'Table tournante'], manufacturers: ['Interroll', 'Siemens', 'FlexLink', 'Bosch Rexroth'] },
+  { prefix: 'LAS', names: ['Découpe laser', 'Soudure laser', 'Gravure laser', 'Marquage laser'], manufacturers: ['Trumpf', 'Prima Power', 'Bystronic', 'Amada'] },
+  { prefix: 'PMP', names: ['Pompe hydraulique', 'Pompe doseuse', 'Pompe centrifuge', 'Groupe hydraulique'], manufacturers: ['Bosch Rexroth', 'Parker', 'Eaton', 'Danfoss'] },
+];
+
+const partCategories = {
+  FILTRES: ['Filtre à huile hydraulique', 'Filtre à air comprimé', 'Filtre hydraulique haute pression', 'Filtre à carburant', 'Cartouche filtrante'],
+  JOINTS: ['Joint torique NBR', 'Joint SPI', 'Joint plat', 'Joint de culasse', 'Kit joints hydrauliques'],
+  ROULEMENTS: ['Roulement à billes', 'Roulement à rouleaux', 'Roulement à aiguilles', 'Palier auto-aligneur', 'Butée à billes'],
+  COURROIES: ['Courroie trapézoïdale', 'Courroie crantée', 'Courroie plate', 'Courroie striée', 'Kit courroie distribution'],
+  LUBRIFIANTS: ['Huile hydraulique', 'Graisse lithium', 'Huile moteur', 'Lubrifiant chaîne', 'Graisse haute température'],
+  ELECTRICITE: ['Contacteur tripolaire', 'Relais thermique', 'Disjoncteur moteur', 'Variateur de fréquence', 'Automate programmable'],
+  PNEUMATIQUE: ['Vérin pneumatique', 'Électrovanne', 'Manomètre', 'Filtre régulateur', 'Raccord rapide'],
+  HYDRAULIQUE: ['Vérin hydraulique', 'Distributeur hydraulique', 'Flexible haute pression', 'Raccord hydraulique', 'Clapet anti-retour'],
+  CAPTEURS: ['Capteur de proximité', 'Capteur de pression', 'Capteur de température', 'Encodeur rotatif', 'Cellule photoélectrique'],
+  CONSOMMABLES: ['Electrode de soudure', 'Buse de découpe', 'Lame de scie', 'Meule abrasive', 'Foret HSS'],
+};
+
+const interventionTypes = [
+  'Remplacement courroie de transmission',
+  'Changement huile hydraulique',
+  'Réparation capteur de position',
+  'Calibration automate programmable',
+  'Nettoyage circuit de refroidissement',
+  'Remplacement roulement à billes',
+  'Vérification paramètres de sécurité',
+  'Réparation fuite pneumatique',
+  'Changement filtre à air',
+  'Mise à jour logiciel contrôle',
+  'Graissage paliers et axes',
+  'Contrôle tension courroies',
+  'Changement vérin hydraulique',
+  'Réparation système électrique',
+  'Alignement laser des axes',
+  'Remplacement joint d\'étanchéité',
+  'Contrôle niveau huile',
+  'Test fonctionnel complet',
+  'Remplacement variateur de fréquence',
+  'Nettoyage filtres hydrauliques',
+];
+
 // Structure hiérarchique : Site > Bâtiment > Ligne > Machines > Composants
 async function main() {
-  console.log('🌱 Début du seed de la base de données avec hiérarchie...\n');
+  console.log('🌱 Début du seed de la base de données GMAO complète...\n');
 
   // Nettoyer les données existantes
   console.log('🗑️  Suppression des données existantes...');
-  // Désactiver temporairement les contraintes FK pour SQLite
   await prisma.$executeRaw`PRAGMA foreign_keys = OFF;`;
+  await prisma.maintenanceSchedule.deleteMany();
   await prisma.partRequest.deleteMany();
   await prisma.workOrderPart.deleteMany();
   await prisma.stockMovement.deleteMany();
@@ -42,7 +88,7 @@ async function main() {
       mustChangePassword: false,
     },
   });
-  console.log(`  ✓ ${userAdmin.name} (${userAdmin.role}) - admin@gmao.local / Admin123!`);
+  console.log(`  ✓ ${userAdmin.name} (${userAdmin.role})`);
 
   const userManager = await prisma.user.create({
     data: {
@@ -55,470 +101,339 @@ async function main() {
       mustChangePassword: false,
     },
   });
-  console.log(`  ✓ ${userManager.name} (${userManager.role}) - manager@gmao.local / Manager123!`);
+  console.log(`  ✓ ${userManager.name} (${userManager.role})`);
 
-  const userTech1 = await prisma.user.create({
-    data: {
-      id: uuidv4(),
-      email: 'tech1@gmao.local',
-      name: 'Jean Dupont',
-      password: techPassword,
-      role: 'TECHNICIAN',
-      isActive: true,
-      mustChangePassword: false,
-    },
-  });
-  console.log(`  ✓ ${userTech1.name} (${userTech1.role}) - tech1@gmao.local / Tech123!`);
+  // Créer plusieurs utilisateurs techniciens
+  const userTechniciens = [];
+  const techNames = [
+    { name: 'Jean Dupont', email: 'tech1@gmao.local' },
+    { name: 'Marie Martin', email: 'tech2@gmao.local' },
+    { name: 'Luc Bernard', email: 'tech3@gmao.local' },
+    { name: 'Sophie Leroy', email: 'tech4@gmao.local' },
+    { name: 'Paul Mercier', email: 'tech5@gmao.local' },
+    { name: 'Julie Moreau', email: 'tech6@gmao.local' },
+  ];
 
-  const userTech2 = await prisma.user.create({
-    data: {
-      id: uuidv4(),
-      email: 'tech2@gmao.local',
-      name: 'Marie Martin',
-      password: techPassword,
-      role: 'TECHNICIAN',
-      isActive: true,
-      mustChangePassword: false,
-    },
-  });
-  console.log(`  ✓ ${userTech2.name} (${userTech2.role}) - tech2@gmao.local / Tech123!`);
+  for (const tech of techNames) {
+    const user = await prisma.user.create({
+      data: {
+        id: uuidv4(),
+        email: tech.email,
+        name: tech.name,
+        password: techPassword,
+        role: 'TECHNICIAN',
+        isActive: true,
+        mustChangePassword: false,
+      },
+    });
+    userTechniciens.push(user);
+    console.log(`  ✓ ${user.name} (${user.role})`);
+  }
 
   const userStock = await prisma.user.create({
     data: {
       id: uuidv4(),
       email: 'stock@gmao.local',
-      name: 'Sophie Leroy',
+      name: 'Claire Dubois',
       password: stockPassword,
       role: 'STOCK_MANAGER',
       isActive: true,
       mustChangePassword: false,
     },
   });
-  console.log(`  ✓ ${userStock.name} (${userStock.role}) - stock@gmao.local / Stock123!`);
+  console.log(`  ✓ ${userStock.name} (${userStock.role})`);
 
-  console.log('\n✅ 5 utilisateurs créés\n');
+  console.log(`\n✅ ${2 + userTechniciens.length + 1} utilisateurs créés\n`);
 
   // 1. CRÉER LES TECHNICIENS
   console.log('👷 Création des techniciens...\n');
   
+  const skillSets = [
+    ['Mécanique', 'Hydraulique', 'Pneumatique'],
+    ['Électricité', 'Automatisme', 'Informatique industrielle'],
+    ['Soudure', 'Usinage', 'Mécanique'],
+    ['Électricité', 'Hydraulique', 'Pneumatique'],
+    ['CNC', 'Programmation', 'Usinage'],
+    ['Robotique', 'Automatisme', 'Vision industrielle'],
+    ['Maintenance préventive', 'Diagnostic', 'Mécanique'],
+    ['Électronique', 'Automatisme', 'Réseaux industriels'],
+  ];
+
   const techniciens = [];
-  
-  const tech1 = await prisma.technician.create({
-    data: {
-      id: uuidv4(),
-      name: 'Jean Dupont',
-      email: 'jean.dupont@example.com',
-      phone: '+33 6 12 34 56 78',
-      skills: JSON.stringify(['Mécanique', 'Hydraulique', 'Pneumatique']),
-      isActive: true,
-      createdAt: new Date(),
-    },
-  });
-  techniciens.push(tech1);
-  console.log(`  ✓ ${tech1.name} - Mécanique, Hydraulique, Pneumatique`);
-
-  const tech2 = await prisma.technician.create({
-    data: {
-      id: uuidv4(),
-      name: 'Marie Martin',
-      email: 'marie.martin@example.com',
-      phone: '+33 6 23 45 67 89',
-      skills: JSON.stringify(['Électricité', 'Automatisme', 'Informatique industrielle']),
-      isActive: true,
-      createdAt: new Date(),
-    },
-  });
-  techniciens.push(tech2);
-  console.log(`  ✓ ${tech2.name} - Électricité, Automatisme`);
-
-  const tech3 = await prisma.technician.create({
-    data: {
-      id: uuidv4(),
-      name: 'Pierre Bernard',
-      email: 'pierre.bernard@example.com',
-      phone: '+33 6 34 56 78 90',
-      skills: JSON.stringify(['Soudure', 'Usinage', 'Mécanique']),
-      isActive: true,
-      createdAt: new Date(),
-    },
-  });
-  techniciens.push(tech3);
-  console.log(`  ✓ ${tech3.name} - Soudure, Usinage`);
-
-  const tech4 = await prisma.technician.create({
-    data: {
-      id: uuidv4(),
-      name: 'Sophie Leroy',
-      email: 'sophie.leroy@example.com',
-      phone: '+33 6 45 67 89 01',
-      skills: JSON.stringify(['Électricité', 'Hydraulique', 'Pneumatique']),
-      isActive: true,
-      createdAt: new Date(),
-    },
-  });
-  techniciens.push(tech4);
-  console.log(`  ✓ ${tech4.name} - Électricité, Hydraulique`);
+  for (let i = 0; i < 8; i++) {
+    const tech = await prisma.technician.create({
+      data: {
+        id: uuidv4(),
+        name: i < techNames.length ? techNames[i].name : `Technicien ${i + 1}`,
+        email: i < techNames.length ? techNames[i].email.replace('@gmao.local', '@example.com') : `tech${i + 1}@example.com`,
+        phone: `+33 6 ${10 + i}${20 + i} ${30 + i}${40 + i} ${50 + i}${60 + i}`,
+        skills: JSON.stringify(skillSets[i] || ['Maintenance générale']),
+        isActive: true,
+        createdAt: new Date(),
+      },
+    });
+    techniciens.push(tech);
+    console.log(`  ✓ ${tech.name} - ${(skillSets[i] || []).join(', ')}`);
+  }
 
   console.log(`\n✅ ${techniciens.length} techniciens créés\n`);
 
-  // 1. CRÉER LE SITE (racine)
-  console.log('🏭 Création de la structure hiérarchique...\n');
+  // Lier les utilisateurs techniciens avec leurs profils
+  console.log('🔗 Liaison des utilisateurs avec les techniciens...\n');
   
-  const site = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Site de Production Principal',
-      serialNumber: 'SITE-001',
-      status: 'RUNNING',
-      assetType: 'SITE',
-      location: 'Zone Industrielle Nord',
-      createdAt: new Date(),
-    },
-  });
-  console.log(`✓ Site: ${site.name}`);
+  for (let i = 0; i < Math.min(userTechniciens.length, techniciens.length); i++) {
+    await prisma.user.update({
+      where: { id: userTechniciens[i].id },
+      data: { technicianId: techniciens[i].id },
+    });
+    console.log(`  ✓ ${userTechniciens[i].name} lié au technicien ${techniciens[i].id}`);
+  }
 
-  // 2. CRÉER LES BÂTIMENTS
-  const batimentA = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Bâtiment A - Usinage',
-      serialNumber: 'BAT-A-001',
-      status: 'RUNNING',
-      assetType: 'BUILDING',
-      location: 'Entrée Nord',
-      parentId: site.id,
-      createdAt: new Date(),
-    },
-  });
-  console.log(`  ✓ Bâtiment: ${batimentA.name}`);
+  console.log('\n✅ Utilisateurs techniciens liés à leurs profils\n');
 
-  const batimentB = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Bâtiment B - Assemblage',
-      serialNumber: 'BAT-B-001',
-      status: 'RUNNING',
-      assetType: 'BUILDING',
-      location: 'Entrée Sud',
-      parentId: site.id,
-      createdAt: new Date(),
-    },
-  });
-  console.log(`  ✓ Bâtiment: ${batimentB.name}`);
-
-  // 3. CRÉER LES LIGNES DE PRODUCTION
-  const ligne1 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Ligne de Production 1 - CNC',
-      serialNumber: 'LINE-001',
-      status: 'RUNNING',
-      assetType: 'LINE',
-      location: 'Atelier A1',
-      parentId: batimentA.id,
-      createdAt: new Date(),
-    },
-  });
-  console.log(`    ✓ Ligne: ${ligne1.name}`);
-
-  const ligne2 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Ligne de Production 2 - Presses',
-      serialNumber: 'LINE-002',
-      status: 'RUNNING',
-      assetType: 'LINE',
-      location: 'Atelier A2',
-      parentId: batimentA.id,
-      createdAt: new Date(),
-    },
-  });
-  console.log(`    ✓ Ligne: ${ligne2.name}`);
-
-  const ligne3 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Ligne d\'Assemblage Robotisée',
-      serialNumber: 'LINE-003',
-      status: 'RUNNING',
-      assetType: 'LINE',
-      location: 'Atelier B1',
-      parentId: batimentB.id,
-      createdAt: new Date(),
-    },
-  });
-  console.log(`    ✓ Ligne: ${ligne3.name}`);
-
-  // 4. CRÉER LES MACHINES (sous les lignes)
-  const machines = [];
+  // 2. CRÉER LA STRUCTURE HIÉRARCHIQUE COMPLÈTE
+  console.log('🏭 Création de la structure hiérarchique étendue...\n');
   
-  // Machines Ligne 1 (CNC)
-  const machine1 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Tour CNC Mazak Integrex',
-      serialNumber: 'CNC-2023-045',
-      status: 'RUNNING',
-      assetType: 'MACHINE',
-      location: 'Poste 1-A',
-      manufacturer: 'Mazak',
-      modelNumber: 'Integrex i-400',
-      parentId: ligne1.id,
-      createdAt: new Date(),
-    },
-  });
-  machines.push(machine1);
+  // Créer 3 sites
+  const sites = [];
+  for (let i = 0; i < 3; i++) {
+    const site = await prisma.asset.create({
+      data: {
+        id: uuidv4(),
+        name: `Site de Production ${i === 0 ? 'Principal' : i === 1 ? 'Nord' : 'Sud'}`,
+        serialNumber: `SITE-00${i + 1}`,
+        status: 'RUNNING',
+        assetType: 'SITE',
+        location: i === 0 ? 'Zone Industrielle Nord' : i === 1 ? 'Parc Technologique' : 'Zone Industrielle Sud',
+        createdAt: new Date(),
+      },
+    });
+    sites.push(site);
+    console.log(`✓ Site: ${site.name}`);
+  }
 
-  const machine2 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Fraiseuse Fanuc Robodrill',
-      serialNumber: 'FR-2022-012',
-      status: 'RUNNING',
-      assetType: 'MACHINE',
-      location: 'Poste 1-B',
-      manufacturer: 'Fanuc',
-      modelNumber: 'Robodrill α-D21MiA5',
-      parentId: ligne1.id,
-      createdAt: new Date(),
-    },
-  });
-  machines.push(machine2);
+  // Pour chaque site, créer des bâtiments
+  const batiments = [];
+  const lignes = [];
+  const machines: any[] = [];
 
-  const machine3 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Machine de découpe laser Trumpf',
-      serialNumber: 'LD-2023-078',
-      status: 'RUNNING',
-      assetType: 'MACHINE',
-      location: 'Poste 1-C',
-      manufacturer: 'Trumpf',
-      modelNumber: 'TruLaser 3030',
-      parentId: ligne1.id,
-      createdAt: new Date(),
-    },
-  });
-  machines.push(machine3);
+  for (let siteIdx = 0; siteIdx < sites.length; siteIdx++) {
+    const numBatiments = siteIdx === 0 ? 4 : 2; // Plus de bâtiments sur le site principal
+    
+    for (let batIdx = 0; batIdx < numBatiments; batIdx++) {
+      const batTypes = ['Usinage', 'Assemblage', 'Peinture', 'Logistique', 'Maintenance'];
+      const batiment = await prisma.asset.create({
+        data: {
+          id: uuidv4(),
+          name: `Bâtiment ${String.fromCharCode(65 + batIdx)} - ${batTypes[batIdx % batTypes.length]}`,
+          serialNumber: `BAT-${String.fromCharCode(65 + siteIdx)}${String.fromCharCode(65 + batIdx)}-001`,
+          status: 'RUNNING',
+          assetType: 'BUILDING',
+          location: `Entrée ${['Nord', 'Sud', 'Est', 'Ouest'][batIdx % 4]}`,
+          parentId: sites[siteIdx].id,
+          createdAt: new Date(),
+        },
+      });
+      batiments.push(batiment);
+      console.log(`  ✓ Bâtiment: ${batiment.name} (Site ${siteIdx + 1})`);
 
-  // Machines Ligne 2 (Presses)
-  const machine4 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Presse Hydraulique HPP-500',
-      serialNumber: 'PH-2024-001',
-      status: 'RUNNING',
-      assetType: 'MACHINE',
-      location: 'Poste 2-A',
-      manufacturer: 'Schuler',
-      modelNumber: 'HPP-500',
-      parentId: ligne2.id,
-      createdAt: new Date(),
-    },
-  });
-  machines.push(machine4);
+      // Pour chaque bâtiment, créer des lignes
+      const numLignes = batIdx < 2 ? 3 : 2; // Plus de lignes dans les premiers bâtiments
+      
+      for (let ligneIdx = 0; ligneIdx < numLignes; ligneIdx++) {
+        const ligneTypes = ['CNC', 'Presses', 'Assemblage Robotisé', 'Soudure', 'Traitement de surface'];
+        const ligne = await prisma.asset.create({
+          data: {
+            id: uuidv4(),
+            name: `Ligne de Production ${siteIdx * 10 + batIdx * 3 + ligneIdx + 1} - ${ligneTypes[ligneIdx % ligneTypes.length]}`,
+            serialNumber: `LINE-${String.fromCharCode(65 + siteIdx)}${batIdx}${ligneIdx}`,
+            status: Math.random() > 0.1 ? 'RUNNING' : 'STOPPED',
+            assetType: 'LINE',
+            location: `Atelier ${String.fromCharCode(65 + batIdx)}${ligneIdx + 1}`,
+            parentId: batiment.id,
+            createdAt: new Date(),
+          },
+        });
+        lignes.push(ligne);
+        console.log(`    ✓ Ligne: ${ligne.name}`);
 
-  const machine5 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Presse plieuse hydraulique Amada',
-      serialNumber: 'PP-2022-045',
-      status: 'STOPPED',
-      assetType: 'MACHINE',
-      location: 'Poste 2-B',
-      manufacturer: 'Amada',
-      modelNumber: 'HFE M2 1003',
-      parentId: ligne2.id,
-      createdAt: new Date(),
-    },
-  });
-  machines.push(machine5);
+        // Pour chaque ligne, créer des machines
+        const numMachines = Math.floor(Math.random() * 4) + 4; // 4 à 7 machines par ligne
+        
+        for (let machIdx = 0; machIdx < numMachines; machIdx++) {
+          const machineType = machineTypes[Math.floor(Math.random() * machineTypes.length)];
+          const machineName = machineType.names[Math.floor(Math.random() * machineType.names.length)];
+          const manufacturer = machineType.manufacturers[Math.floor(Math.random() * machineType.manufacturers.length)];
+          
+          // Générer un numéro de série unique basé sur l'index global
+          const globalMachineIndex = machines.length + 1;
+          
+          const machine = await prisma.asset.create({
+            data: {
+              id: uuidv4(),
+              name: `${machineName} ${manufacturer}`,
+              serialNumber: `${machineType.prefix}-${2020 + Math.floor(Math.random() * 5)}-${String(globalMachineIndex).padStart(4, '0')}`,
+              status: Math.random() > 0.15 ? 'RUNNING' : Math.random() > 0.5 ? 'STOPPED' : 'BROKEN',
+              assetType: 'MACHINE',
+              location: `Poste ${ligneIdx + 1}-${String.fromCharCode(65 + machIdx)}`,
+              manufacturer: manufacturer,
+              modelNumber: `${manufacturer.substring(0, 3).toUpperCase()}-${Math.floor(Math.random() * 9000) + 1000}`,
+              parentId: ligne.id,
+              createdAt: new Date(),
+            },
+          });
+          machines.push(machine);
+        }
+      }
+    }
+  }
 
-  const machine6 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Presse à injection Arburg',
-      serialNumber: 'PI-2024-008',
-      status: 'RUNNING',
-      assetType: 'MACHINE',
-      location: 'Poste 2-C',
-      manufacturer: 'Arburg',
-      modelNumber: '420C 1000-350',
-      parentId: ligne2.id,
-      createdAt: new Date(),
-    },
-  });
-  machines.push(machine6);
+  console.log(`\n✅ Structure créée: ${sites.length} sites, ${batiments.length} bâtiments, ${lignes.length} lignes, ${machines.length} machines\n`);
 
-  // Machines Ligne 3 (Assemblage)
-  const machine7 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Robot de soudure Kuka KR 16',
-      serialNumber: 'RB-2023-067',
-      status: 'RUNNING',
-      assetType: 'MACHINE',
-      location: 'Cellule 3-1',
-      manufacturer: 'Kuka',
-      modelNumber: 'KR 16 R2010',
-      parentId: ligne3.id,
-      createdAt: new Date(),
-    },
-  });
-  machines.push(machine7);
-
-  const machine8 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Convoyeur à bande modulaire',
-      serialNumber: 'CV-2024-003',
-      status: 'RUNNING',
-      assetType: 'MACHINE',
-      location: 'Transport principal',
-      manufacturer: 'Interroll',
-      modelNumber: 'RollerDrive EC5000',
-      parentId: ligne3.id,
-      createdAt: new Date(),
-    },
-  });
-  machines.push(machine8);
-
-  console.log(`\n✅ ${machines.length} machines créées`);
-
-  // 5. CRÉER DES COMPOSANTS (enfants de machines)
-  console.log('\n🔩 Création des composants...');
+  // 3. CRÉER DES COMPOSANTS pour un échantillon de machines
+  console.log('🔩 Création des composants...\n');
   
-  const composant1 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Moteur principal Siemens',
-      serialNumber: 'MOTOR-CNC-001',
-      status: 'RUNNING',
-      assetType: 'COMPONENT',
-      manufacturer: 'Siemens',
-      modelNumber: '1LA7 133-4AA',
-      parentId: machine1.id,
-      createdAt: new Date(),
-    },
-  });
-  console.log(`      ✓ Composant: ${composant1.name}`);
-
-  const composant2 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Broche de fraisage NSK',
-      serialNumber: 'SPINDLE-FR-001',
-      status: 'RUNNING',
-      assetType: 'COMPONENT',
-      manufacturer: 'NSK',
-      modelNumber: 'HMS100',
-      parentId: machine2.id,
-      createdAt: new Date(),
-    },
-  });
-  console.log(`      ✓ Composant: ${composant2.name}`);
-
-  const composant3 = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Vérin hydraulique principal',
-      serialNumber: 'CYLINDER-PH-001',
-      status: 'BROKEN',
-      assetType: 'COMPONENT',
-      manufacturer: 'Bosch Rexroth',
-      modelNumber: 'CDT3',
-      parentId: machine4.id,
-      createdAt: new Date(),
-    },
-  });
-  console.log(`      ✓ Composant: ${composant3.name}`);
-
-  // 6. CRÉER DES ÉQUIPEMENTS UTILITAIRES (sous bâtiments)
-  const compresseur = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Compresseur Atlas Copco GA75',
-      serialNumber: 'AC-2021-089',
-      status: 'RUNNING',
-      assetType: 'MACHINE',
-      location: 'Salle des machines',
-      manufacturer: 'Atlas Copco',
-      modelNumber: 'GA 75 VSD+',
-      parentId: batimentA.id,
-      createdAt: new Date(),
-    },
-  });
-  machines.push(compresseur);
-
-  const cta = await prisma.asset.create({
-    data: {
-      id: uuidv4(),
-      name: 'Centrale de traitement d\'air',
-      serialNumber: 'CTA-2022-112',
-      status: 'RUNNING',
-      assetType: 'MACHINE',
-      location: 'Toiture bâtiment B',
-      manufacturer: 'France Air',
-      modelNumber: 'CTA-450',
-      parentId: batimentB.id,
-      createdAt: new Date(),
-    },
-  });
-  machines.push(cta);
-
-  console.log('\n✅ Structure hiérarchique complète créée\n');
-
-  // 7. CRÉER DES INTERVENTIONS
-  console.log('🔧 Création des interventions...');
-  
-  const interventionTitles = [
-    'Remplacement courroie de transmission',
-    'Changement huile hydraulique',
-    'Réparation capteur de position',
-    'Calibration automate programmable',
-    'Nettoyage circuit de refroidissement',
-    'Remplacement roulement à billes',
-    'Vérification paramètres de sécurité',
-    'Réparation fuite pneumatique',
-    'Changement filtre à air',
-    'Mise à jour logiciel contrôle',
-    'Graissage paliers et axes',
-    'Contrôle tension courroies',
+  const componentTypes = [
+    'Moteur électrique', 'Broche', 'Vérin hydraulique', 'Pompe', 'Variateur',
+    'Capteur de position', 'Encodeur', 'Servomoteur', 'Réducteur', 'Transformateur'
   ];
+  
+  let componentCount = 0;
+  const sampleMachines = machines.slice(0, Math.min(30, machines.length));
+  
+  for (const machine of sampleMachines) {
+    const numComponents = Math.floor(Math.random() * 3) + 1; // 1 à 3 composants
+    
+    for (let i = 0; i < numComponents; i++) {
+      const componentType = componentTypes[Math.floor(Math.random() * componentTypes.length)];
+      await prisma.asset.create({
+        data: {
+          id: uuidv4(),
+          name: `${componentType} ${i + 1}`,
+          serialNumber: `CMP-${machine.serialNumber}-${String(i + 1).padStart(2, '0')}`,
+          status: Math.random() > 0.1 ? 'RUNNING' : 'BROKEN',
+          assetType: 'COMPONENT',
+          manufacturer: ['Siemens', 'Bosch', 'ABB', 'Schneider', 'Parker'][Math.floor(Math.random() * 5)],
+          modelNumber: `MOD-${Math.floor(Math.random() * 9000) + 1000}`,
+          parentId: machine.id,
+          createdAt: new Date(),
+        },
+      });
+      componentCount++;
+    }
+  }
+  
+  console.log(`✅ ${componentCount} composants créés\n`);
+
+  // 4. CRÉER UN GRAND NOMBRE DE PIÈCES DÉTACHÉES
+  console.log('📦 Création d\'un large inventaire de pièces...\n');
+
+  const parts = [];
+  let partCounter = 1;
+  const suppliers = ['Hydro Parts SA', 'SKF France', 'Gates Europe', 'Schneider Electric', 'Bosch Rexroth', 'Parker Hannifin', 'Festo', 'Siemens Industry', 'Total Lubrifiants', 'Endress+Hauser'];
+
+  for (const [category, partNames] of Object.entries(partCategories)) {
+    for (let i = 0; i < partNames.length; i++) {
+      const partName = partNames[i];
+      const numVariants = Math.floor(Math.random() * 4) + 2; // 2 à 5 variantes par type
+      
+      for (let v = 0; v < numVariants; v++) {
+        const stock = Math.floor(Math.random() * 50);
+        const minStock = Math.floor(Math.random() * 15) + 5;
+        
+        const part = await prisma.part.create({
+          data: {
+            id: uuidv4(),
+            reference: `${category.substring(0, 3)}-${String(partCounter).padStart(4, '0')}`,
+            name: `${partName} ${v > 0 ? `variant ${v + 1}` : ''}`,
+            description: `${partName} - Spécification ${v + 1}`,
+            category: category,
+            unitPrice: Math.round((10 + Math.random() * 200) * 100) / 100,
+            quantityInStock: stock,
+            minStockLevel: minStock,
+            supplier: suppliers[Math.floor(Math.random() * suppliers.length)],
+            supplierRef: `SUP-${Math.floor(Math.random() * 90000) + 10000}`,
+            location: `${String.fromCharCode(65 + Math.floor(Math.random() * 5))}-${String(Math.floor(Math.random() * 20) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 30) + 1).padStart(2, '0')}`,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+        parts.push(part);
+        partCounter++;
+      }
+    }
+  }
+
+  console.log(`✅ ${parts.length} pièces créées\n`);
+
+  // 5. CRÉER DES MOUVEMENTS DE STOCK
+  console.log('📝 Création des mouvements de stock...\n');
+
+  let stockMovementCount = 0;
+  const movementTypes: Array<'IN' | 'OUT' | 'ADJUSTMENT'> = ['IN', 'OUT', 'ADJUSTMENT'];
+  const movementReasons = {
+    IN: ['Réception commande', 'Retour intervention', 'Ajustement inventaire', 'Transfert interne'],
+    OUT: ['Utilisation intervention', 'Casse', 'Prêt externe', 'Retour fournisseur'],
+    ADJUSTMENT: ['Correction inventaire', 'Recomptage', 'Régularisation'],
+  };
+
+  for (const part of parts.slice(0, Math.min(100, parts.length))) {
+    const numMovements = Math.floor(Math.random() * 5) + 1; // 1 à 5 mouvements
+    
+    for (let i = 0; i < numMovements; i++) {
+      const movType = movementTypes[Math.floor(Math.random() * movementTypes.length)];
+      const reasons = movementReasons[movType];
+      
+      await prisma.stockMovement.create({
+        data: {
+          id: uuidv4(),
+          partId: part.id,
+          type: movType,
+          quantity: Math.floor(Math.random() * 10) + 1,
+          reason: reasons[Math.floor(Math.random() * reasons.length)],
+          reference: `REF-${Math.floor(Math.random() * 90000) + 10000}`,
+          createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000), // Dans les 90 derniers jours
+        },
+      });
+      stockMovementCount++;
+    }
+  }
+
+  console.log(`✅ ${stockMovementCount} mouvements de stock créés\n`);
+
+  // 6. CRÉER DES INTERVENTIONS (WORK ORDERS)
+  console.log('🔧 Création des interventions...\n');
 
   let workOrderCount = 0;
-  const allAssets = [...machines, composant1, composant2, composant3];
-
-  for (const asset of allAssets) {
-    const numInterventions = Math.floor(Math.random() * 4) + 1; // 1 à 4 interventions
+  
+  for (const machine of machines) {
+    const numInterventions = Math.floor(Math.random() * 5) + 2; // 2 à 6 interventions par machine
 
     for (let i = 0; i < numInterventions; i++) {
-      const randomTitle = interventionTitles[Math.floor(Math.random() * interventionTitles.length)];
+      const randomTitle = interventionTypes[Math.floor(Math.random() * interventionTypes.length)];
       
-      // Mix de statuts avec planification
-      const statusOptions: Array<'DRAFT' | 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED'> = [
-        'DRAFT', 'PLANNED', 'IN_PROGRESS', 'COMPLETED'
+      const statusOptions: Array<'DRAFT' | 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'> = [
+        'DRAFT', 'PLANNED', 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'COMPLETED', 'COMPLETED', 'CANCELLED'
       ];
       const randomStatus = statusOptions[Math.floor(Math.random() * statusOptions.length)];
-      const randomPriority = Math.random() > 0.6 ? 'HIGH' : 'LOW';
+      const randomPriority = Math.random() > 0.7 ? 'HIGH' : Math.random() > 0.3 ? 'MEDIUM' : 'LOW';
+      const randomType = Math.random() > 0.3 ? 'CORRECTIVE' : 'PREVENTIVE';
       
-      // Assigner un technicien aléatoirement (70% assignés)
-      const assignTech = Math.random() > 0.3;
+      const assignTech = Math.random() > 0.2;
       const randomTech = techniciens[Math.floor(Math.random() * techniciens.length)];
       
-      // Pour les ordres planifiés/en cours/complétés, créer une date de planification
       let scheduledDate: Date | undefined;
       let startedDate: Date | undefined;
       let completedDate: Date | undefined;
-      const estimatedDuration = 60 + Math.floor(Math.random() * 180); // 60-240 minutes
+      const estimatedDuration = 30 + Math.floor(Math.random() * 240); // 30-270 minutes
       
       if (randomStatus !== 'DRAFT') {
-        // Date dans les 30 prochains jours
-        scheduledDate = new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000);
+        const daysOffset = randomStatus === 'COMPLETED' ? -Math.random() * 60 : Math.random() * 30;
+        scheduledDate = new Date(Date.now() + daysOffset * 24 * 60 * 60 * 1000);
       }
       
       if (randomStatus === 'IN_PROGRESS' || randomStatus === 'COMPLETED') {
-        startedDate = new Date(scheduledDate!.getTime() + Math.random() * 60 * 60 * 1000);
+        startedDate = new Date(scheduledDate!.getTime() + Math.random() * 120 * 60 * 1000);
       }
       
       if (randomStatus === 'COMPLETED') {
@@ -529,19 +444,20 @@ async function main() {
         data: {
           id: uuidv4(),
           title: randomTitle,
-          description: `Intervention ${randomTitle.toLowerCase()} sur ${asset.name}`,
+          description: `${randomTitle} sur ${machine.name}\n\nDétails de l'intervention à réaliser...`,
           status: randomStatus,
           priority: randomPriority,
-          assetId: asset.id,
+          type: randomType,
+          assetId: machine.id,
           assignedToId: assignTech ? randomTech.id : null,
           scheduledAt: scheduledDate,
           startedAt: startedDate,
           completedAt: completedDate,
           estimatedDuration: scheduledDate ? estimatedDuration : null,
-          actualDuration: completedDate ? estimatedDuration + Math.floor(Math.random() * 60) : null,
-          laborCost: completedDate ? 50 + Math.random() * 200 : 0,
-          materialCost: completedDate ? Math.random() * 150 : 0,
-          totalCost: 0, // Will be calculated
+          actualDuration: completedDate ? estimatedDuration + Math.floor(Math.random() * 120) - 60 : null,
+          laborCost: completedDate ? 40 + Math.random() * 300 : 0,
+          materialCost: completedDate ? Math.random() * 500 : 0,
+          totalCost: 0,
           createdAt: new Date(Date.now() - Math.random() * 180 * 24 * 60 * 60 * 1000),
         },
       });
@@ -551,305 +467,156 @@ async function main() {
 
   console.log(`✅ ${workOrderCount} interventions créées\n`);
 
-  // RÉSUMÉ
-  console.log('📊 Résumé de la hiérarchie:');
-  console.log(`  • 1 Site`);
-  console.log(`  • 2 Bâtiments`);
-  console.log(`  • 3 Lignes de production`);
-  console.log(`  • ${machines.length} Machines`);
-  console.log(`  • 3 Composants`);
-  console.log(`  • ${techniciens.length} Techniciens`);
-  console.log(`  • ${workOrderCount} Interventions`);
+  // 7. CRÉER DES MAINTENANCES PRÉVENTIVES
+  console.log('🔄 Création des maintenances préventives...\n');
 
-  // 5. CRÉER LES PIÈCES DÉTACHÉES
-  console.log('\n📦 Création des pièces détachées...\n');
+  let maintenanceCount = 0;
+  const maintenanceTasks = [
+    'Graissage mensuel',
+    'Contrôle semestriel général',
+    'Vérification trimestrielle sécurité',
+    'Remplacement annuel filtres',
+    'Inspection mensuelle circuits',
+    'Contrôle hebdomadaire niveaux',
+    'Révision annuelle complète',
+  ];
 
-  const parts = [];
-
-  const partFiltre = await prisma.part.create({
-    data: {
-      id: uuidv4(),
-      reference: 'FLT-001',
-      name: 'Filtre à huile hydraulique',
-      description: 'Filtre haute pression 10 microns',
-      category: 'FILTRES',
-      unitPrice: 45.50,
-      quantityInStock: 12,
-      minStockLevel: 5,
-      supplier: 'Hydro Parts SA',
-      supplierRef: 'HP-FLT-10M',
-      location: 'A-12-03',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
-  parts.push(partFiltre);
-  console.log(`  ✓ ${partFiltre.reference} - ${partFiltre.name} (Stock: ${partFiltre.quantityInStock})`);
-
-  const partJoint = await prisma.part.create({
-    data: {
-      id: uuidv4(),
-      reference: 'JNT-002',
-      name: 'Joint torique NBR 50x3',
-      description: 'Joint torique en caoutchouc nitrile',
-      category: 'JOINTS',
-      unitPrice: 3.20,
-      quantityInStock: 45,
-      minStockLevel: 20,
-      supplier: 'Seals Direct',
-      supplierRef: 'SD-NBR-50-3',
-      location: 'B-05-12',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
-  parts.push(partJoint);
-  console.log(`  ✓ ${partJoint.reference} - ${partJoint.name} (Stock: ${partJoint.quantityInStock})`);
-
-  const partRoulement = await prisma.part.create({
-    data: {
-      id: uuidv4(),
-      reference: 'RLT-003',
-      name: 'Roulement à billes SKF 6205',
-      description: 'Roulement rigide à billes, diamètre 25mm',
-      category: 'ROULEMENTS',
-      unitPrice: 28.90,
-      quantityInStock: 3,
-      minStockLevel: 8,
-      supplier: 'SKF France',
-      supplierRef: 'SKF-6205-2RS',
-      location: 'A-08-15',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
-  parts.push(partRoulement);
-  console.log(`  ✓ ${partRoulement.reference} - ${partRoulement.name} (Stock: ${partRoulement.quantityInStock}) ⚠️ STOCK BAS`);
-
-  const partCourroie = await prisma.part.create({
-    data: {
-      id: uuidv4(),
-      reference: 'CRR-004',
-      name: 'Courroie trapézoïdale SPZ 1250',
-      description: 'Courroie section SPZ, longueur 1250mm',
-      category: 'COURROIES',
-      unitPrice: 18.75,
-      quantityInStock: 8,
-      minStockLevel: 5,
-      supplier: 'Gates Europe',
-      supplierRef: 'GT-SPZ1250',
-      location: 'C-02-08',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
-  parts.push(partCourroie);
-  console.log(`  ✓ ${partCourroie.reference} - ${partCourroie.name} (Stock: ${partCourroie.quantityInStock})`);
-
-  const partHuile = await prisma.part.create({
-    data: {
-      id: uuidv4(),
-      reference: 'LUB-005',
-      name: 'Huile hydraulique HV 46',
-      description: 'Bidon 5L, huile haute viscosité',
-      category: 'LUBRIFIANTS',
-      unitPrice: 42.00,
-      quantityInStock: 15,
-      minStockLevel: 10,
-      supplier: 'Total Lubrifiants',
-      supplierRef: 'TL-HV46-5L',
-      location: 'D-01-02',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
-  parts.push(partHuile);
-  console.log(`  ✓ ${partHuile.reference} - ${partHuile.name} (Stock: ${partHuile.quantityInStock})`);
-
-  const partContacteur = await prisma.part.create({
-    data: {
-      id: uuidv4(),
-      reference: 'ELC-006',
-      name: 'Contacteur tripolaire 18A',
-      description: 'Contacteur Schneider LC1D18',
-      category: 'ELECTRICITE',
-      unitPrice: 65.50,
-      quantityInStock: 0,
-      minStockLevel: 3,
-      supplier: 'Schneider Electric',
-      supplierRef: 'LC1D18BD',
-      location: 'E-03-05',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
-  parts.push(partContacteur);
-  console.log(`  ✓ ${partContacteur.reference} - ${partContacteur.name} (Stock: ${partContacteur.quantityInStock}) ❌ RUPTURE`);
-
-  // Créer quelques mouvements de stock
-  console.log('\n📝 Création des mouvements de stock...\n');
-
-  await prisma.stockMovement.create({
-    data: {
-      id: uuidv4(),
-      partId: partFiltre.id,
-      type: 'IN',
-      quantity: 20,
-      reason: 'Réception commande',
-      reference: 'BC-2024-0012',
-      createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // Il y a 15 jours
-    },
-  });
-
-  await prisma.stockMovement.create({
-    data: {
-      id: uuidv4(),
-      partId: partFiltre.id,
-      type: 'OUT',
-      quantity: 8,
-      reason: 'Utilisation intervention',
-      reference: 'Maintenances diverses',
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // Il y a 5 jours
-    },
-  });
-
-  await prisma.stockMovement.create({
-    data: {
-      id: uuidv4(),
-      partId: partRoulement.id,
-      type: 'OUT',
-      quantity: 5,
-      reason: 'Utilisation intervention',
-      reference: 'Maintenance machine',
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // Il y a 3 jours
-    },
-  });
-
-  console.log(`  ✓ 3 mouvements de stock enregistrés`);
-
-  console.log(`\n📦 ${parts.length} pièces créées`);
-
-  // CRÉER DES DEMANDES DE PIÈCES DE TEST
-  console.log('\n📋 Création des demandes de pièces...\n');
-
-  // Récupérer quelques interventions existantes
-  const existingWorkOrders = await prisma.workOrder.findMany({
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-  });
-
-  // Demande en attente (PENDING) - liée à un OT
-  if (existingWorkOrders.length > 0) {
-    const partRequest1 = await prisma.partRequest.create({
-      data: {
-        id: uuidv4(),
-        partId: partFiltre.id,
-        quantity: 2,
-        requestedById: userTech1.id,
-        reason: 'Remplacement préventif des filtres sur la ligne CNC',
-        urgency: 'NORMAL',
-        workOrderId: existingWorkOrders[0].id,
-        assetId: existingWorkOrders[0].assetId,
-        status: 'PENDING',
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // Il y a 2 jours
-      },
-    });
-    console.log(`  ✓ Demande PENDING: ${partFiltre.name} x2 (par ${userTech1.name})`);
+  for (const machine of machines.slice(0, Math.min(machines.length, 80))) {
+    const numSchedules = Math.floor(Math.random() * 3) + 1; // 1 à 3 maintenances préventives
+    
+    for (let i = 0; i < numSchedules; i++) {
+      const task = maintenanceTasks[Math.floor(Math.random() * maintenanceTasks.length)];
+      const triggerType = Math.random() > 0.3 ? 'TIME_BASED' : 'USAGE_BASED';
+      const frequency = triggerType === 'TIME_BASED' 
+        ? `${Math.floor(Math.random() * 180) + 30}d`  // 30-210 jours
+        : `${Math.floor(Math.random() * 1000) + 100}h`; // 100-1100 heures
+      
+      const nextDue = new Date(Date.now() + Math.random() * 90 * 24 * 60 * 60 * 1000);
+      
+      await prisma.maintenanceSchedule.create({
+        data: {
+          id: uuidv4(),
+          title: task,
+          description: `Maintenance préventive: ${task} pour ${machine.name}`,
+          assetId: machine.id,
+          assignedToId: techniciens[Math.floor(Math.random() * techniciens.length)].id,
+          frequency: frequency,
+          triggerType: triggerType,
+          nextDueDate: nextDue,
+          estimatedDuration: 60 + Math.floor(Math.random() * 180),
+          isActive: Math.random() > 0.1,
+          createdAt: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
+        },
+      });
+      maintenanceCount++;
+    }
   }
 
-  // Demande urgente en attente
-  const partRequest2 = await prisma.partRequest.create({
-    data: {
-      id: uuidv4(),
-      partId: partRoulement.id,
-      quantity: 1,
-      requestedById: userTech2.id,
-      reason: 'Roulement défaillant sur presse hydraulique - machine à l\'arrêt',
-      urgency: 'CRITICAL',
-      status: 'PENDING',
-      createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // Il y a 1 heure
-    },
-  });
-  console.log(`  ✓ Demande PENDING CRITIQUE: ${partRoulement.name} x1 (par ${userTech2.name})`);
+  console.log(`✅ ${maintenanceCount} plannings de maintenance créés\n`);
 
-  // Demande approuvée (en attente de livraison)
-  const partRequest3 = await prisma.partRequest.create({
-    data: {
-      id: uuidv4(),
-      partId: partCourroie.id,
-      quantity: 2,
-      requestedById: userTech1.id,
-      reason: 'Courroies usées sur convoyeur',
-      urgency: 'HIGH',
-      status: 'APPROVED',
-      approvedById: userManager.id,
-      approvedAt: new Date(Date.now() - 12 * 60 * 60 * 1000), // Il y a 12 heures
-      notes: 'Approuvé - A livrer en priorité',
-      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Il y a 1 jour
-    },
-  });
-  console.log(`  ✓ Demande APPROVED: ${partCourroie.name} x2 (par ${userTech1.name}, approuvé par ${userManager.name})`);
+  // 8. CRÉER DES DEMANDES DE PIÈCES
+  console.log('📋 Création des demandes de pièces...\n');
 
-  // Demande livrée
-  const partRequest4 = await prisma.partRequest.create({
-    data: {
-      id: uuidv4(),
-      partId: partJoint.id,
-      quantity: 10,
-      requestedById: userTech2.id,
-      reason: 'Réfection étanchéité pompe hydraulique',
-      urgency: 'NORMAL',
-      status: 'DELIVERED',
-      approvedById: userManager.id,
-      approvedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-      deliveredById: userStock.id,
-      deliveredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      notes: 'Livré au poste de travail',
-      createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
-    },
-  });
-  console.log(`  ✓ Demande DELIVERED: ${partJoint.name} x10 (livrée par ${userStock.name})`);
+  const workOrders = await prisma.workOrder.findMany({ take: 50 });
+  const urgencyLevels: Array<'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'> = ['LOW', 'NORMAL', 'NORMAL', 'HIGH', 'CRITICAL'];
+  const statuses: Array<'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'CANCELLED'> = ['PENDING', 'PENDING', 'APPROVED', 'DELIVERED', 'DELIVERED', 'REJECTED', 'CANCELLED'];
+  
+  let partRequestCount = 0;
 
-  // Demande rejetée
-  const partRequest5 = await prisma.partRequest.create({
-    data: {
-      id: uuidv4(),
-      partId: partContacteur.id,
-      quantity: 5,
-      requestedById: userTech1.id,
-      reason: 'Stock de sécurité contacteurs',
-      urgency: 'LOW',
-      status: 'REJECTED',
-      approvedById: userManager.id,
-      approvedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      rejectionReason: 'Commande en cours chez le fournisseur, livraison prévue semaine prochaine',
-      createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
-    },
-  });
-  console.log(`  ✓ Demande REJECTED: ${partContacteur.name} x5 (rejetée)`);
+  for (let i = 0; i < Math.min(120, parts.length); i++) {
+    const part = parts[Math.floor(Math.random() * parts.length)];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    const urgency = urgencyLevels[Math.floor(Math.random() * urgencyLevels.length)];
+    const requestedBy = userTechniciens[Math.floor(Math.random() * userTechniciens.length)];
+    const workOrder = workOrders[Math.floor(Math.random() * workOrders.length)];
+    
+    const createdDate = new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000);
+    
+    let approvedAt: Date | undefined;
+    let deliveredAt: Date | undefined;
+    let approvedById: string | undefined;
+    let deliveredById: string | undefined;
+    let notes: string | undefined;
+    let rejectionReason: string | undefined;
+    
+    if (status !== 'PENDING') {
+      approvedAt = new Date(createdDate.getTime() + Math.random() * 24 * 60 * 60 * 1000);
+      approvedById = userManager.id;
+    }
+    
+    if (status === 'DELIVERED') {
+      deliveredAt = new Date(approvedAt!.getTime() + Math.random() * 48 * 60 * 60 * 1000);
+      deliveredById = userStock.id;
+      notes = 'Livré et installé';
+    }
+    
+    if (status === 'REJECTED') {
+      rejectionReason = 'Stock insuffisant' + (Math.random() > 0.5 ? ' - commande fournisseur en cours' : ' - pièce obsolète');
+    }
+    
+    await prisma.partRequest.create({
+      data: {
+        id: uuidv4(),
+        partId: part.id,
+        quantity: Math.floor(Math.random() * 10) + 1,
+        requestedById: requestedBy.id,
+        reason: `Demande pour ${workOrder?.title || 'intervention'}`,
+        urgency: urgency,
+        workOrderId: Math.random() > 0.3 ? workOrder?.id : null,
+        assetId: workOrder?.assetId,
+        status: status,
+        approvedById: approvedById,
+        approvedAt: approvedAt,
+        deliveredById: deliveredById,
+        deliveredAt: deliveredAt,
+        notes: notes,
+        rejectionReason: rejectionReason,
+        createdAt: createdDate,
+      },
+    });
+    partRequestCount++;
+  }
 
-  console.log('\n✅ 5 demandes de pièces créées');
+  console.log(`✅ ${partRequestCount} demandes de pièces créées\n`);
 
   // RÉSUMÉ FINAL
-  console.log('\n' + '='.repeat(60));
-  console.log('📊 RÉSUMÉ DU SEED:');
-  console.log('='.repeat(60));
-  console.log(`  👥 Utilisateurs: 5 (1 Admin, 1 Manager, 2 Techniciens, 1 Stock)`);
+  const totalAssets = await prisma.asset.count();
+  const totalWorkOrders = await prisma.workOrder.count();
+  const totalMaintenanceSchedules = await prisma.maintenanceSchedule.count();
+  const totalParts = await prisma.part.count();
+  const totalStockMovements = await prisma.stockMovement.count();
+  const totalPartRequests = await prisma.partRequest.count();
+  
+  console.log('\n' + '='.repeat(70));
+  console.log('📊 RÉSUMÉ COMPLET DU SEED GMAO:');
+  console.log('='.repeat(70));
+  console.log(`  👥 Utilisateurs: ${2 + userTechniciens.length + 1} (1 Admin, 1 Manager, ${userTechniciens.length} Techniciens, 1 Stock)`);
   console.log(`  👷 Techniciens: ${techniciens.length}`);
-  console.log(`  🏭 Structure hiérarchique: 1 Site > 2 Bâtiments > 3 Lignes > ${machines.length} Machines`);
-  console.log(`  📦 Pièces détachées: ${parts.length}`);
-  console.log(`  🔧 Interventions: ${workOrderCount}`);
-  console.log(`  📋 Demandes de pièces: 5 (2 en attente, 1 approuvée, 1 livrée, 1 rejetée)`);
-  console.log('='.repeat(60));
+  console.log(`  🏭 Assets totaux: ${totalAssets}`);
+  console.log(`     • ${sites.length} Sites`);
+  console.log(`     • ${batiments.length} Bâtiments`);
+  console.log(`     • ${lignes.length} Lignes de production`);
+  console.log(`     • ${machines.length} Machines`);
+  console.log(`     • ${componentCount} Composants`);
+  console.log(`  🔧 Interventions: ${totalWorkOrders}`);
+  console.log(`  🔄 Maintenances préventives: ${totalMaintenanceSchedules}`);
+  console.log(`  📦 Pièces détachées: ${totalParts}`);
+  console.log(`  📝 Mouvements de stock: ${totalStockMovements}`);
+  console.log(`  📋 Demandes de pièces: ${totalPartRequests}`);
+  console.log('='.repeat(70));
   console.log('\n🔐 COMPTES DE TEST:');
   console.log('  • admin@gmao.local / Admin123!     (Administrateur)');
   console.log('  • manager@gmao.local / Manager123! (Manager)');
-  console.log('  • tech1@gmao.local / Tech123!      (Technicien)');
-  console.log('  • tech2@gmao.local / Tech123!      (Technicien)');
+  console.log('  • tech1@gmao.local / Tech123!      (Technicien 1 - Jean Dupont)');
+  console.log('  • tech2@gmao.local / Tech123!      (Technicien 2 - Marie Martin)');
+  console.log('  • tech3@gmao.local / Tech123!      (Technicien 3 - Luc Bernard)');
+  console.log('  • tech4@gmao.local / Tech123!      (Technicien 4 - Sophie Leroy)');
+  console.log('  • tech5@gmao.local / Tech123!      (Technicien 5 - Paul Mercier)');
+  console.log('  • tech6@gmao.local / Tech123!      (Technicien 6 - Julie Moreau)');
   console.log('  • stock@gmao.local / Stock123!     (Gestionnaire Stock)');
-  console.log('='.repeat(60));
+  console.log('='.repeat(70));
   
-  console.log('\n🎉 Seed terminé avec succès!\n');
+  console.log('\n🎉 Seed GMAO complet terminé avec succès!\n');
 }
 
 main()

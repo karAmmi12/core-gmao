@@ -206,6 +206,7 @@ export async function completeWorkOrderAction(
   }
 
   const workOrderRepo = DIContainer.getWorkOrderRepository();
+  const workOrderPartRepo = DIContainer.getWorkOrderPartRepository();
 
   try {
     const workOrder = await workOrderRepo.findById(workOrderId);
@@ -231,17 +232,32 @@ export async function completeWorkOrderAction(
       };
     }
 
-    workOrder.markAsCompleted({
-      laborCost: laborCost ? parseFloat(laborCost) : 0,
-      materialCost: workOrder.materialCost, // Garder le coût matériel existant
-    });
+    // Utiliser le use case pour marquer comme complété ET consommer les pièces
+    const { CompleteWorkOrderUseCase } = await import(
+      '@/core/application/use-cases/CompleteWorkOrderUseCase'
+    );
+    const useCase = new CompleteWorkOrderUseCase(workOrderRepo, workOrderPartRepo);
+    await useCase.execute(workOrderId);
 
-    // Mettre à jour la durée réelle si fournie
-    if (actualDuration) {
-      (workOrder as any).actualDuration = parseInt(actualDuration);
+    // Récupérer l'intervention mise à jour pour modifier les coûts et la durée
+    const updatedWorkOrder = await workOrderRepo.findById(workOrderId);
+    if (updatedWorkOrder) {
+      // Mettre à jour les coûts
+      if (laborCost) {
+        (updatedWorkOrder as any).laborCost = parseFloat(laborCost);
+      }
+      
+      // Mettre à jour la durée réelle si fournie
+      if (actualDuration) {
+        (updatedWorkOrder as any).actualDuration = parseInt(actualDuration);
+      }
+
+      // Recalculer le coût total
+      (updatedWorkOrder as any).totalCost = updatedWorkOrder.laborCost + updatedWorkOrder.materialCost;
+      
+      await workOrderRepo.update(updatedWorkOrder);
     }
 
-    await workOrderRepo.update(workOrder);
     revalidatePath('/work-orders');
     return { success: true };
   } catch (e: any) {
@@ -528,6 +544,19 @@ export async function createMaintenanceScheduleAction(
   previousState: ActionState | null,
   formData: FormData
 ): Promise<ActionState> {
+  // Vérifier l'authentification et les permissions
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { error: 'Non authentifié' };
+  }
+
+  const userRole = session.user.role as string;
+  if (userRole !== 'MANAGER' && userRole !== 'ADMIN') {
+    return {
+      error: "Seuls les responsables et administrateurs peuvent créer des plannings de maintenance préventive."
+    };
+  }
+
   const triggerType = formData.get("triggerType") as string || "TIME_BASED";
   
   const rawData = {
@@ -597,6 +626,19 @@ export async function createMaintenanceScheduleAction(
 export async function executeMaintenanceScheduleAction(
   scheduleId: string
 ): Promise<ActionState> {
+  // Vérifier l'authentification et les permissions
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { error: 'Non authentifié' };
+  }
+
+  const userRole = session.user.role as string;
+  if (userRole !== 'MANAGER' && userRole !== 'ADMIN') {
+    return {
+      error: "Seuls les responsables et administrateurs peuvent exécuter des plannings de maintenance."
+    };
+  }
+
   const { ExecuteMaintenanceScheduleUseCase } = await import("@/core/application/use-cases/ExecuteMaintenanceScheduleUseCase");
   const maintenanceRepo = DIContainer.getMaintenanceScheduleRepository();
   const workOrderRepo = DIContainer.getWorkOrderRepository();
@@ -612,6 +654,98 @@ export async function executeMaintenanceScheduleAction(
   }
 }
 
+export async function updateMaintenanceScheduleAction(
+  previousState: ActionState | null,
+  formData: FormData
+): Promise<ActionState> {
+  // Vérifier l'authentification et les permissions
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { error: 'Non authentifié' };
+  }
+
+  const userRole = session.user.role as string;
+  if (userRole !== 'MANAGER' && userRole !== 'ADMIN') {
+    return {
+      error: "Seuls les responsables et administrateurs peuvent modifier des plannings de maintenance."
+    };
+  }
+
+  const scheduleId = formData.get("scheduleId") as string;
+  if (!scheduleId) {
+    return { error: "ID du planning manquant" };
+  }
+
+  const triggerType = formData.get("triggerType") as string;
+  
+  const rawData = {
+    title: formData.get("title") as string,
+    description: formData.get("description") as string | undefined,
+    priority: formData.get("priority") as string,
+    // Time-based fields
+    frequency: formData.get("frequency") as string,
+    intervalValue: formData.get("intervalValue") as string,
+    nextDueDate: formData.get("nextDueDate") as string,
+    // Threshold-based fields
+    thresholdMetric: formData.get("thresholdMetric") as string | undefined,
+    thresholdValue: formData.get("thresholdValue") as string | undefined,
+    thresholdUnit: formData.get("thresholdUnit") as string | undefined,
+    // Common fields
+    estimatedDuration: formData.get("estimatedDuration") as string | undefined,
+    assignedToId: formData.get("assignedToId") as string | undefined,
+  };
+
+  // Nettoyer les valeurs vides
+  const cleanData: any = {};
+  if (rawData.title) cleanData.title = rawData.title;
+  if (rawData.description && rawData.description !== "") cleanData.description = rawData.description;
+  if (rawData.priority) cleanData.priority = rawData.priority;
+  
+  // Time-based fields
+  if (triggerType === 'TIME_BASED') {
+    if (rawData.frequency && rawData.frequency !== "") cleanData.frequency = rawData.frequency;
+    if (rawData.intervalValue && rawData.intervalValue !== "") cleanData.intervalValue = rawData.intervalValue;
+    if (rawData.nextDueDate && rawData.nextDueDate !== "") cleanData.nextDueDate = rawData.nextDueDate;
+  }
+  
+  // Threshold-based fields
+  if (triggerType === 'THRESHOLD_BASED') {
+    if (rawData.thresholdMetric && rawData.thresholdMetric !== "") cleanData.thresholdMetric = rawData.thresholdMetric;
+    if (rawData.thresholdValue && rawData.thresholdValue !== "") cleanData.thresholdValue = rawData.thresholdValue;
+    if (rawData.thresholdUnit && rawData.thresholdUnit !== "") cleanData.thresholdUnit = rawData.thresholdUnit;
+  }
+  
+  // Common fields
+  if (rawData.estimatedDuration && rawData.estimatedDuration !== "") cleanData.estimatedDuration = rawData.estimatedDuration;
+  if (rawData.assignedToId && rawData.assignedToId !== "") cleanData.assignedToId = rawData.assignedToId;
+
+  const { MaintenanceScheduleUpdateSchema } = await import("@/core/application/validation/MaintenanceScheduleSchemas");
+  
+  const validationResult = MaintenanceScheduleUpdateSchema.safeParse(cleanData);
+  if (!validationResult.success) {
+    const errors = validationResult.error.flatten().fieldErrors;
+    const firstError = validationResult.error.issues?.[0];
+    return {
+      error: firstError?.message || "Erreur de validation",
+      errors,
+    };
+  }
+
+  const { UpdateMaintenanceScheduleUseCase } = await import("@/core/application/use-cases/UpdateMaintenanceScheduleUseCase");
+  const maintenanceRepo = DIContainer.getMaintenanceScheduleRepository();
+  const assetRepo = DIContainer.getAssetRepository();
+  const useCase = new UpdateMaintenanceScheduleUseCase(maintenanceRepo, assetRepo);
+
+  try {
+    await useCase.execute(scheduleId, validationResult.data);
+    revalidatePath("/maintenance");
+    revalidatePath(`/maintenance/${scheduleId}/edit`);
+    return { success: true };
+  } catch (e: any) {
+    return { error: e.message };
+  }
+}
+
 export async function updateMaintenanceReadingAction(
   previousState: ActionState | null,
   formData: FormData
@@ -621,6 +755,19 @@ export async function updateMaintenanceReadingAction(
 
   if (!scheduleId || isNaN(currentValue)) {
     return { error: "Données invalides" };
+  }
+
+  // Vérifier l'authentification et les permissions
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { error: 'Non authentifié' };
+  }
+
+  const userRole = session.user.role as string;
+  if (userRole !== 'MANAGER' && userRole !== 'ADMIN') {
+    return {
+      error: "Seuls les responsables et administrateurs peuvent mettre à jour les relevés de maintenance."
+    };
   }
 
   const { UpdateMaintenanceReadingUseCase } = await import("@/core/application/use-cases/UpdateMaintenanceReadingUseCase");

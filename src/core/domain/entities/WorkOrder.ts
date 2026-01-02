@@ -115,6 +115,16 @@ export class WorkOrder {
     );
   }
 
+  /**
+   * Marque l'intervention comme terminée (complétion rapide)
+   * 
+   * Cette méthode est utilisée pour la complétion simple en une seule étape.
+   * Pour un workflow complet avec séparation technicien/manager, utilisez :
+   * - completeByTechnician() puis validateByManager()
+   * 
+   * Note: Les pièces doivent être marquées comme CONSUMED séparément 
+   * (géré par CompleteWorkOrderUseCase)
+   */
   markAsCompleted(costs?: WorkOrderCosts): void {
     if (this.status === 'COMPLETED') {
       throw new Error("Cette intervention est déjà terminée.");
@@ -149,6 +159,50 @@ export class WorkOrder {
     
     (this as any).status = 'IN_PROGRESS';
     (this as any).startedAt = new Date();
+  }
+
+  /**
+   * Le technicien termine l'intervention (passage à COMPLETED)
+   * Renseigne la durée réelle
+   */
+  completeByTechnician(actualDuration: number): void {
+    if (this.status !== 'IN_PROGRESS') {
+      throw new Error("L'intervention doit être en cours pour être terminée.");
+    }
+    if (actualDuration <= 0) {
+      throw new Error("La durée réelle doit être supérieure à 0.");
+    }
+
+    (this as any).status = 'COMPLETED';
+    (this as any).completedAt = new Date();
+    (this as any).actualDuration = actualDuration;
+  }
+
+  /**
+   * Le manager valide l'intervention terminée avec les coûts
+   * Peut être utilisé pour toute intervention COMPLETED qui n'a pas encore de coûts validés
+   */
+  validateByManager(
+    managerId: string,
+    costs: { laborCost: number; materialCost: number }
+  ): void {
+    if (this.status !== 'COMPLETED') {
+      throw new Error("L'intervention doit être terminée pour être validée.");
+    }
+    // Vérifier si déjà validé (coûts non nuls OU approvedById rempli pour les coûts)
+    // Note: approvedById peut être rempli pour l'approbation initiale, donc on vérifie aussi les coûts
+    if (this.laborCost > 0 || this.materialCost > 0) {
+      throw new Error("Les coûts ont déjà été enregistrés pour cette intervention.");
+    }
+    if (costs.laborCost < 0 || costs.materialCost < 0) {
+      throw new Error("Les coûts ne peuvent pas être négatifs.");
+    }
+
+    (this as any).approvedById = managerId;
+    (this as any).approvedAt = new Date();
+    (this as any).laborCost = costs.laborCost;
+    (this as any).materialCost = costs.materialCost;
+    (this as any).totalCost = costs.laborCost + costs.materialCost;
   }
 
   cancel(reason?: string): void {
@@ -256,6 +310,62 @@ export class WorkOrder {
       approvedById,
       approvedAt,
       rejectionReason
+    );
+  }
+
+  /**
+   * Factory method for tests - creates a WorkOrder with partial data
+   */
+  static forTest(data: Partial<{
+    id: string;
+    title: string;
+    description: string;
+    status: OrderStatus;
+    priority: OrderPriority;
+    type: MaintenanceType;
+    assetId: string;
+    scheduleId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    scheduledAt: Date;
+    startedAt: Date;
+    completedAt: Date;
+    estimatedDuration: number;
+    actualDuration: number;
+    assignedToId: string;
+    laborCost: number;
+    materialCost: number;
+    totalCost: number;
+    estimatedCost: number;
+    requiresApproval: boolean;
+    approvedById: string;
+    approvedAt: Date;
+    rejectionReason: string;
+  }>): WorkOrder {
+    return new WorkOrder(
+      data.id || 'test-id',
+      data.title || 'Test Title',
+      data.description,
+      data.status || 'PENDING',
+      data.priority || 'MEDIUM',
+      data.type || 'CORRECTIVE',
+      data.assetId || 'test-asset',
+      data.scheduleId,
+      data.createdAt || new Date(),
+      data.scheduledAt,
+      data.startedAt,
+      data.completedAt,
+      data.estimatedDuration,
+      data.actualDuration,
+      data.assignedToId,
+      data.laborCost || 0,
+      data.materialCost || 0,
+      data.totalCost || 0,
+      data.estimatedCost,
+      data.requiresApproval !== undefined ? data.requiresApproval : false,
+      data.approvedById,
+      data.approvedAt,
+      data.rejectionReason
     );
   }
 }

@@ -98,6 +98,15 @@ export class PrismaMaintenanceScheduleRepository implements MaintenanceScheduleR
     return schedules.map(raw => mapToEntity(raw as PrismaSchedule));
   }
 
+  async findByAssignedTo(technicianId: string): Promise<MaintenanceSchedule[]> {
+    const schedules = await prisma.maintenanceSchedule.findMany({
+      where: { assignedToId: technicianId },
+      orderBy: { nextDueDate: 'asc' },
+    });
+
+    return schedules.map(raw => mapToEntity(raw as PrismaSchedule));
+  }
+
   async findDueSchedules(): Promise<MaintenanceSchedule[]> {
     // Pour TIME_BASED : nextDueDate <= now
     // Pour THRESHOLD_BASED : currentValue >= thresholdValue

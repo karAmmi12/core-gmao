@@ -287,4 +287,65 @@ export class MaintenanceSchedule {
       new Date()
     );
   }
+
+  /**
+   * Met à jour le planning de maintenance
+   */
+  update(input: Partial<MaintenanceScheduleInput>): MaintenanceSchedule {
+    // Validation du titre si fourni
+    if (input.title !== undefined && input.title.length < 5) {
+      throw new Error('Le titre doit contenir au moins 5 caractères');
+    }
+
+    return MaintenanceSchedule.restore(
+      this.id,
+      this.assetId,
+      input.title !== undefined ? input.title : this.title,
+      input.description !== undefined ? input.description : this.description,
+      this.maintenanceType,
+      this.triggerType,
+      input.frequency !== undefined ? input.frequency : this.frequency,
+      input.intervalValue !== undefined ? input.intervalValue : this.intervalValue,
+      this.lastExecutedAt,
+      input.nextDueDate !== undefined ? input.nextDueDate : this.nextDueDate,
+      input.thresholdMetric !== undefined ? input.thresholdMetric : this.thresholdMetric,
+      input.thresholdValue !== undefined ? input.thresholdValue : this.thresholdValue,
+      input.thresholdUnit !== undefined ? input.thresholdUnit : this.thresholdUnit,
+      input.currentValue !== undefined ? input.currentValue : this.currentValue,
+      input.estimatedDuration !== undefined ? input.estimatedDuration : this.estimatedDuration,
+      input.assignedToId !== undefined ? input.assignedToId : this.assignedToId,
+      this.isActive,
+      input.priority !== undefined ? input.priority : this.priority,
+      this.createdAt,
+      new Date()
+    );
+  }
+
+  /**
+   * Active ou désactive le planning
+   */
+  setActive(isActive: boolean): MaintenanceSchedule {
+    return MaintenanceSchedule.restore(
+      this.id,
+      this.assetId,
+      this.title,
+      this.description,
+      this.maintenanceType,
+      this.triggerType,
+      this.frequency,
+      this.intervalValue,
+      this.lastExecutedAt,
+      this.nextDueDate,
+      this.thresholdMetric,
+      this.thresholdValue,
+      this.thresholdUnit,
+      this.currentValue,
+      this.estimatedDuration,
+      this.assignedToId,
+      isActive,
+      this.priority,
+      this.createdAt,
+      new Date()
+    );
+  }
 }

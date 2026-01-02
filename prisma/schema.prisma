@@ -47,6 +47,7 @@ model Technician {
   // Relations
   workOrders  WorkOrder[]
   maintenanceSchedules MaintenanceSchedule[]
+  userAccount User?    // Compte utilisateur lié
 
   @@map("technicians")
 }
@@ -324,6 +325,10 @@ model User {
   role          String    @default("OPERATOR") // ADMIN, MANAGER, TECHNICIAN, OPERATOR, VIEWER
   isActive      Boolean   @default(false)
   
+  // Lien avec le profil technicien (pour les utilisateurs de rôle TECHNICIAN)
+  technicianId  String?   @unique
+  technician    Technician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+  
   // Système d'invitation
   inviteToken       String?   @unique
   inviteExpiresAt   DateTime?
@@ -354,5 +359,6 @@ model User {
   @@index([email])
   @@index([role])
   @@index([isActive])
+  @@index([technicianId])
   @@map("users")
 }
