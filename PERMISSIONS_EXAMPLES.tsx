@@ -74,7 +74,7 @@ interface WorkOrderCardProps {
   workOrder: {
     id: string;
     status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
-    assignedToId: string | null;
+    assignedToId: string | undefined;
     createdById: string;
   };
   userRole: UserRole;
@@ -86,7 +86,7 @@ export function WorkOrderCard({ workOrder, userRole, userId }: WorkOrderCardProp
 
   // Préparer le contexte pour les permissions
   const workOrderContext = {
-    assignedToId: workOrder.assignedToId,
+    assignedToId: workOrder.assignedToId ?? undefined,
     status: workOrder.status,
     createdById: workOrder.createdById,
   };
@@ -301,6 +301,10 @@ export function ExampleWithGate({ userRole, userId }: { userRole: UserRole; user
 function GoodExample({ userRole, userId }: { userRole: UserRole; userId: string }) {
   const permissions = usePermissions({ userRole, userId });
 
+  const handleApprove = () => {
+    console.log('Approving...');
+  };
+
   return (
     <>
       {permissions.partRequest.canApprove && (
@@ -330,7 +334,7 @@ function GoodContextExample({
   userRole, 
   userId 
 }: { 
-  workOrder: { assignedToId: string | null; status: string }; 
+  workOrder: { assignedToId: string | undefined; status: string }; 
   userRole: UserRole; 
   userId: string 
 }) {

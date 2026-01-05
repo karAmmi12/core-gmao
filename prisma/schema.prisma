@@ -5,8 +5,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Asset {
@@ -97,6 +97,8 @@ model WorkOrder {
   @@index([scheduledAt])
   @@index([status])
   @@index([requiresApproval])
+  @@index([assetId])
+  @@index([createdAt])
   @@map("work_orders")
 }
 

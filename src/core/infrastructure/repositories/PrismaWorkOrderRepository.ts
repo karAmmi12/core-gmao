@@ -1,4 +1,4 @@
-import { WorkOrderRepository } from "@/core/domain/repositories/WorkOrderRepository";
+import { WorkOrderRepository, PaginatedResult, WorkOrderPartDetails } from "@/core/domain/repositories/WorkOrderRepository";
 import { WorkOrder, OrderStatus, OrderPriority, MaintenanceType } from "@/core/domain/entities/WorkOrder";
 import { prisma } from "@/lib/prisma";
 
@@ -65,6 +65,55 @@ export class PrismaWorkOrderRepository implements WorkOrderRepository {
         o.rejectionReason ?? undefined
       )
     );
+  }
+
+  async findAllPaginated(page: number, pageSize: number): Promise<PaginatedResult<WorkOrder>> {
+    const skip = (page - 1) * pageSize;
+    
+    const [rawOrders, total] = await Promise.all([
+      prisma.workOrder.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      prisma.workOrder.count()
+    ]);
+    
+    const items = rawOrders.map(o => 
+      WorkOrder.restore(
+        o.id,
+        o.title,
+        o.description ?? undefined,
+        o.status as OrderStatus,
+        o.priority as OrderPriority,
+        (o.type || 'CORRECTIVE') as MaintenanceType,
+        o.assetId,
+        undefined,
+        o.createdAt,
+        o.scheduledAt ?? undefined,
+        o.startedAt ?? undefined,
+        o.completedAt ?? undefined,
+        o.estimatedDuration ?? undefined,
+        o.actualDuration ?? undefined,
+        o.assignedToId ?? undefined,
+        o.laborCost,
+        o.materialCost,
+        o.totalCost,
+        o.estimatedCost ?? undefined,
+        o.requiresApproval,
+        o.approvedById ?? undefined,
+        o.approvedAt ?? undefined,
+        o.rejectionReason ?? undefined
+      )
+    );
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize)
+    };
   }
 
   async findByAssetId(assetId: string): Promise<WorkOrder[]> {
@@ -255,5 +304,41 @@ export class PrismaWorkOrderRepository implements WorkOrderRepository {
       unitPrice: p.unitPrice,
       totalPrice: p.totalPrice,
     }));
+  }
+
+  async getWorkOrderPartsBatch(workOrderIds: string[]): Promise<Record<string, WorkOrderPartDetails[]>> {
+    if (workOrderIds.length === 0) return {};
+
+    // Une seule requête pour toutes les pièces
+    const parts = await prisma.workOrderPart.findMany({
+      where: { 
+        workOrderId: { in: workOrderIds } 
+      },
+      include: {
+        part: true,
+      },
+    });
+
+    // Grouper par workOrderId
+    const grouped: Record<string, WorkOrderPartDetails[]> = {};
+    
+    for (const p of parts) {
+      if (!grouped[p.workOrderId]) {
+        grouped[p.workOrderId] = [];
+      }
+      grouped[p.workOrderId].push({
+        partId: p.partId,
+        partReference: p.part.reference,
+        partName: p.part.name,
+        quantityPlanned: p.quantityPlanned,
+        quantityReserved: p.quantityReserved,
+        quantityConsumed: p.quantityConsumed,
+        status: p.status,
+        unitPrice: p.unitPrice,
+        totalPrice: p.totalPrice,
+      });
+    }
+
+    return grouped;
   }
 }

@@ -1,11 +1,21 @@
 import { CompleteTechnicianWorkOrderUseCase } from '../CompleteTechnicianWorkOrderUseCase';
-import { IWorkOrderRepository } from '@/core/domain/repositories/WorkOrderRepository';
+import { WorkOrderRepository } from '@/core/domain/repositories/WorkOrderRepository';
 import { IWorkOrderPartRepository } from '@/core/domain/repositories/WorkOrderPartRepository';
 import { WorkOrder } from '@/core/domain/entities/WorkOrder';
 import { WorkOrderPart } from '@/core/domain/entities/WorkOrderPart';
 
+// Mock TransactionManager
+jest.mock('@/core/infrastructure/transaction/TransactionManager', () => ({
+  TransactionManager: {
+    executeWithRetry: jest.fn((fn) => fn({
+      workOrder: { update: jest.fn() },
+      workOrderPart: { update: jest.fn() }
+    }))
+  }
+}));
+
 // Mock repositories
-class MockWorkOrderRepository implements IWorkOrderRepository {
+class MockWorkOrderRepository implements WorkOrderRepository {
   private workOrders: Map<string, WorkOrder> = new Map();
 
   async findById(id: string): Promise<WorkOrder | null> {
@@ -22,6 +32,37 @@ class MockWorkOrderRepository implements IWorkOrderRepository {
 
   async findAll(): Promise<WorkOrder[]> {
     return Array.from(this.workOrders.values());
+  }
+
+  async findAllPaginated(page: number, pageSize: number): Promise<any> {
+    const items = Array.from(this.workOrders.values());
+    return { items, total: items.length, page, pageSize, totalPages: 1 };
+  }
+
+  async findByAssetId(assetId: string): Promise<WorkOrder[]> {
+    return Array.from(this.workOrders.values()).filter(wo => wo.assetId === assetId);
+  }
+
+  async findByAssignedTo(technicianId: string): Promise<WorkOrder[]> {
+    return [];
+  }
+
+  async countPending(): Promise<number> {
+    return 0;
+  }
+
+  async countByType(): Promise<any> {
+    return {};
+  }
+
+  async addPart(workOrderId: string, partId: string, quantity: number, unitPrice: number): Promise<void> {}
+
+  async getWorkOrderParts(workOrderId: string): Promise<any[]> {
+    return [];
+  }
+
+  async getWorkOrderPartsBatch(workOrderIds: string[]): Promise<Record<string, any[]>> {
+    return {};
   }
 
   async delete(id: string): Promise<void> {
@@ -49,6 +90,24 @@ class MockWorkOrderPartRepository implements IWorkOrderPartRepository {
 
   async findById(id: string): Promise<WorkOrderPart | null> {
     return this.parts.get(id) || null;
+  }
+
+  async findAll(): Promise<WorkOrderPart[]> {
+    return Array.from(this.parts.values());
+  }
+
+  async findPendingReservations(): Promise<WorkOrderPart[]> {
+    return [];
+  }
+
+  async delete(id: string): Promise<void> {
+    this.parts.delete(id);
+  }
+
+  async deleteByWorkOrderId(workOrderId: string): Promise<void> {
+    Array.from(this.parts.values())
+      .filter(p => p.workOrderId === workOrderId)
+      .forEach(p => this.parts.delete(p.id));
   }
 
   // Helper for tests
@@ -86,31 +145,23 @@ describe('CompleteTechnicianWorkOrderUseCase', () => {
     });
     workOrderRepo.addWorkOrder(workOrder);
 
-    const part1 = new WorkOrderPart({
+    const part1 = WorkOrderPart.create({
       id: 'part-1',
       workOrderId: 'wo-1',
       partId: 'spare-1',
       quantityPlanned: 5,
-      quantityConsumed: 0,
-      status: 'PLANNED',
       unitPrice: 10,
-      totalPrice: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
-    const part2 = new WorkOrderPart({
+    const part2 = WorkOrderPart.create({
       id: 'part-2',
       workOrderId: 'wo-1',
       partId: 'spare-2',
       quantityPlanned: 3,
-      quantityConsumed: 0,
-      status: 'RESERVED',
       unitPrice: 20,
-      totalPrice: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
+    // Simuler la réservation
+    part2.reserve(3, 'stock-manager-1');
 
     workOrderPartRepo.addPart(part1);
     workOrderPartRepo.addPart(part2);
@@ -147,6 +198,7 @@ describe('CompleteTechnicianWorkOrderUseCase', () => {
     await expect(
       useCase.execute({
         workOrderId: 'non-existent',
+        technicianId: 'tech-1',
         actualDuration: 120,
       })
     ).rejects.toThrow('Intervention non trouvée.');
@@ -160,13 +212,13 @@ describe('CompleteTechnicianWorkOrderUseCase', () => {
       priority: 'MEDIUM',
       status: 'PENDING',
       title: 'Test intervention',
-      description: 'Test description',
-    });
+      description: 'Test description',      assignedToId: 'tech-1',    });
     workOrderRepo.addWorkOrder(workOrder);
 
     await expect(
       useCase.execute({
         workOrderId: 'wo-1',
+        technicianId: 'tech-1',
         actualDuration: 120,
       })
     ).rejects.toThrow("L'intervention doit être en cours pour être terminée.");

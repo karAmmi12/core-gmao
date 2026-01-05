@@ -27,7 +27,9 @@ export {
   FormError,
   FormSuccess,
   Modal,
+  Pagination,
   type ModalProps,
+  type PaginationProps,
 } from './ui';
 
 // =============================================================================

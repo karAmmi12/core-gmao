@@ -16,6 +16,7 @@ import {
   PageHeader,
   DataTable,
   EmptyState,
+  Pagination,
   type Column
 } from '@/components';
 import { useSearch } from '@/presentation/hooks';
@@ -28,6 +29,12 @@ import { LAYOUT_STYLES } from '@/styles/design-system';
 interface WorkOrdersContentProps {
   workOrders: WorkOrderDTO[];
   technicians: { id: string; name: string }[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    pageSize: number;
+  };
 }
 
 type StatusFilter = 'ALL' | 'DRAFT' | 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
@@ -65,7 +72,7 @@ const TYPE_COLORS: Record<string, 'danger' | 'success' | 'primary' | 'warning'> 
 // Main Component
 // ============================================================================
 
-export default function WorkOrdersContent({ workOrders, technicians }: WorkOrdersContentProps) {
+export default function WorkOrdersContent({ workOrders, technicians, pagination }: WorkOrdersContentProps) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('ALL');
@@ -75,6 +82,11 @@ export default function WorkOrdersContent({ workOrders, technicians }: WorkOrder
   const { query, setQuery, filteredItems } = useSearch(workOrders, {
     searchKeys: ['title', 'description']
   });
+
+  // Pagination handler
+  const handlePageChange = (page: number) => {
+    router.push(`/work-orders?page=${page}`);
+  };
 
   // Quick actions
   const handleStartWork = async (orderId: string) => {
@@ -346,11 +358,24 @@ export default function WorkOrdersContent({ workOrders, technicians }: WorkOrder
               : 'Créez votre première intervention'}
           />
         ) : (
-          <DataTable
-            columns={columns}
-            data={filteredOrders}
-            keyField="id"
-          />
+          <>
+            <DataTable
+              columns={columns}
+              data={filteredOrders}
+              keyField="id"
+            />
+            {pagination.totalPages > 1 && (
+              <Card className="mt-4">
+                <Pagination
+                  currentPage={pagination.currentPage}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.totalItems}
+                  pageSize={pagination.pageSize}
+                  onPageChange={handlePageChange}
+                />
+              </Card>
+            )}
+          </>
         )}
       </div>
     </div>

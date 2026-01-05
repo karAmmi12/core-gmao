@@ -38,12 +38,16 @@ export class AssetService {
       return null;
     }
 
-    // Mapper les entités en DTOs et charger les pièces
+    // Mapper les entités en DTOs et charger les pièces en batch (1 seule requête)
     const historyDTOs = WorkOrderMapper.toDTOList(result.history);
     
-    // Charger les pièces pour chaque intervention
+    // Charger toutes les pièces en une seule requête (optimisation N+1)
+    const workOrderIds = historyDTOs.map(wo => wo.id);
+    const allPartsByWorkOrder = await this.orderRepo.getWorkOrderPartsBatch(workOrderIds);
+    
+    // Assigner les pièces à chaque intervention
     for (const workOrder of historyDTOs) {
-      const partsDetails = await this.orderRepo.getWorkOrderParts(workOrder.id);
+      const partsDetails = allPartsByWorkOrder[workOrder.id] || [];
       // Map WorkOrderPartDetails to WorkOrderPartDTO with backward-compatible quantity
       workOrder.parts = partsDetails.map(p => ({
         ...p,

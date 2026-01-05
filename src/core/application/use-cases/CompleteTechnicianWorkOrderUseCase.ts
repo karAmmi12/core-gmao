@@ -1,5 +1,7 @@
 import { WorkOrderRepository } from '@/core/domain/repositories/WorkOrderRepository';
 import { IWorkOrderPartRepository } from '@/core/domain/repositories/WorkOrderPartRepository';
+import { TransactionManager } from '@/core/infrastructure/transaction/TransactionManager';
+import { prisma } from '@/lib/prisma';
 
 export interface CompleteWorkOrderByTechnicianInput {
   workOrderId: string;

@@ -612,3 +612,4 @@ export function Modal({ title, isOpen = true, onClose, children, size = 'md' }: 
 // =============================================================================
 
 export { Logo } from './Logo';
+export { Pagination, type PaginationProps } from './Pagination';

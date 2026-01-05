@@ -1,5 +1,13 @@
 import { WorkOrder } from "../entities/WorkOrder";
 
+export interface PaginatedResult<T> {
+    items: T[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+}
+
 export interface WorkOrderPartDetails {
     partId: string;
     partReference: string;
@@ -22,6 +30,7 @@ export interface OrdersByTypeStats {
 export interface WorkOrderRepository {
     save(order: WorkOrder): Promise<void>;
     findAll(): Promise<WorkOrder[]>;
+    findAllPaginated(page: number, pageSize: number): Promise<PaginatedResult<WorkOrder>>;
     findByAssetId(assetId: string): Promise<WorkOrder[]>;
     findByAssignedTo(technicianId: string): Promise<WorkOrder[]>;
     findById(id:string): Promise<WorkOrder | null>;
@@ -30,4 +39,5 @@ export interface WorkOrderRepository {
     countByType?(): Promise<OrdersByTypeStats>;
     addPart(workOrderId: string, partId: string, quantity: number, unitPrice: number): Promise<void>;
     getWorkOrderParts(workOrderId: string): Promise<WorkOrderPartDetails[]>;
+    getWorkOrderPartsBatch(workOrderIds: string[]): Promise<Record<string, WorkOrderPartDetails[]>>;
 }   

@@ -56,7 +56,7 @@ async function main() {
 
   // Nettoyer les données existantes
   console.log('🗑️  Suppression des données existantes...');
-  await prisma.$executeRaw`PRAGMA foreign_keys = OFF;`;
+  // PostgreSQL gère automatiquement les foreign keys, pas besoin de PRAGMA
   await prisma.maintenanceSchedule.deleteMany();
   await prisma.partRequest.deleteMany();
   await prisma.workOrderPart.deleteMany();
@@ -66,7 +66,6 @@ async function main() {
   await prisma.technician.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.user.deleteMany();
-  await prisma.$executeRaw`PRAGMA foreign_keys = ON;`;
   console.log('✅ Données existantes supprimées\n');
 
   // 0. CRÉER LES UTILISATEURS

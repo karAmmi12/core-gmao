@@ -60,6 +60,7 @@ const STATUS_CONFIG = {
 
 const PRIORITY_CONFIG = {
   LOW: { label: 'Normale', variant: 'neutral' as const },
+  MEDIUM: { label: 'Moyenne', variant: 'primary' as const },
   HIGH: { label: 'Urgente', variant: 'danger' as const }
 };
 

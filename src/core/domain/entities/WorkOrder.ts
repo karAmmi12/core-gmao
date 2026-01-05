@@ -12,7 +12,7 @@ export type OrderStatus =
   | 'COMPLETED'
   | 'CANCELLED';
 
-export type OrderPriority = 'LOW' | 'HIGH';
+export type OrderPriority = 'LOW' | 'MEDIUM' | 'HIGH';
 export type MaintenanceType = 'CORRECTIVE' | 'PREVENTIVE' | 'PREDICTIVE' | 'CONDITIONAL';
 
 export interface WorkOrderSchedule {

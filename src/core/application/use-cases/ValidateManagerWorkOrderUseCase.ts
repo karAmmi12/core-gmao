@@ -1,5 +1,7 @@
 import { WorkOrderRepository } from '@/core/domain/repositories/WorkOrderRepository';
 import { IWorkOrderPartRepository } from '@/core/domain/repositories/WorkOrderPartRepository';
+import { TransactionManager } from '@/core/infrastructure/transaction/TransactionManager';
+import { prisma } from '@/lib/prisma';
 
 export interface ValidateWorkOrderByManagerInput {
   workOrderId: string;
@@ -37,18 +39,33 @@ export class ValidateManagerWorkOrderUseCase {
       materialCost += input.materialCostAdjustment;
     }
 
-    // Valider l'intervention avec les coûts
-    workOrder.validateByManager(input.managerId, {
-      laborCost: input.laborCost,
-      materialCost,
+    // Exécuter dans une transaction pour garantir l'atomicité
+    await TransactionManager.executeWithRetry(async (tx) => {
+      // Valider l'intervention avec les coûts
+      workOrder.validateByManager(input.managerId, {
+        laborCost: input.laborCost,
+        materialCost,
+      });
+
+      // Si des notes de validation sont ajoutées
+      let description = workOrder.description;
+      if (input.validationNotes) {
+        const currentDescription = workOrder.description || '';
+        description = `${currentDescription}\n\n[Validation manager]\n${input.validationNotes}`.trim();
+      }
+
+      // Mettre à jour dans la transaction
+      await tx.workOrder.update({
+        where: { id: workOrder.id },
+        data: {
+          laborCost: workOrder.laborCost,
+          materialCost: workOrder.materialCost,
+          totalCost: workOrder.totalCost,
+          approvedById: workOrder.approvedById,
+          approvedAt: workOrder.approvedAt,
+          description,
+        }
+      });
     });
-
-    // Si des notes de validation sont ajoutées
-    if (input.validationNotes) {
-      const currentDescription = workOrder.description || '';
-      (workOrder as any).description = `${currentDescription}\n\n[Validation manager]\n${input.validationNotes}`.trim();
-    }
-
-    await this.workOrderRepo.update(workOrder);
   }
 }

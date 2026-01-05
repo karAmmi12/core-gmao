@@ -50,7 +50,7 @@ export const authOptions: AuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
-          technicianId: user.technicianId, // Pour filtrer les interventions assignées
+          technicianId: user.technicianId ?? null, // Pour filtrer les interventions assignées, convertir undefined en null
           permissions: getPermissions(user.role),
           mustChangePassword: user.mustChangePassword,
         };
