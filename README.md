@@ -1,50 +1,150 @@
-# CORE GMAO
+# Core GMAO
 
-Application de **Gestion de Maintenance Assistée par Ordinateur** construite avec **Next.js 15**, **Prisma**, et **Clean Architecture**.
+Application web de gestion de maintenance assistée par ordinateur construite avec Next.js et TypeScript, suivant les principes de Clean Architecture.
 
-## 🏗️ Architecture
+**Demo:** [https://core-gmao.vercel.app](https://core-gmao.vercel.app)  
+**Login:** `admin@gmao.local` / `Admin123!`
 
-Ce projet suit les principes de la **Clean Architecture** avec une séparation stricte en couches :
+## À propos
 
-- **Domain** : Entités métier et règles business (Asset, WorkOrder)
-- **Application** : Use Cases, Services, DTOs, Validation
-- **Infrastructure** : Implémentation Prisma, Dependency Injection
-- **Presentation** : Composants React, UI, Layouts
+Système complet de GMAO permettant de gérer le cycle de vie de la maintenance industrielle. L'application couvre la gestion des équipements, des interventions, du stock de pièces détachées et de la planification préventive avec un système de permissions basé sur les rôles.
 
-Voir [ARCHITECTURE.md](ARCHITECTURE.md) pour une documentation complète.
+## Fonctionnalités
 
-## 🚀 Installation
+**Gestion d'assets**
+- Structure hiérarchique (Sites → Bâtiments → Lignes → Machines → Composants)
+- Suivi de l'état et de l'historique des équipements
+- Indicateurs de performance par asset
+
+**Work orders**
+- Création et assignation d'interventions
+- Workflow multi-étapes (draft → pending → in progress → completed)
+- Système de validation Manager
+- Historique complet des interventions
+
+**Gestion de stock**
+- Catalogue de pièces détachées
+- Demandes de pièces liées aux interventions
+- Suivi des mouvements de stock
+- Alertes de stock bas
+
+**Maintenance préventive**
+- Planification automatique basée sur la fréquence
+- Notifications et rappels
+- Génération d'interventions préventives
+
+**Dashboard & Analytics**
+- KPIs temps réel (assets, interventions, coûts)
+- Statistiques par technicien
+- Suivi des interventions en attente
+
+**Système de rôles**
+- Admin : Gestion complète du système
+- Manager : Validation et supervision
+- Technicien : Exécution des interventions
+- Stock : Gestion des pièces
+
+## Stack technique
+
+**Frontend**
+- Next.js 15 (App Router, Server Components)
+- TypeScript (strict mode)
+- Tailwind CSS
+- React 19
+
+**Backend**
+- PostgreSQL (Neon)
+- Prisma ORM
+- NextAuth.js (authentification)
+- Zod (validation)
+
+**Tests & Déploiement**
+- Jest + React Testing Library
+- Vercel (CI/CD automatique)
+
+## Architecture
+
+Le projet suit Clean Architecture avec séparation en couches :
+
+```
+src/
+├── core/
+│   ├── domain/           # Entités métier et interfaces
+│   ├── application/      # Use cases et services
+│   └── infrastructure/   # Implémentation Prisma + DI
+├── presentation/         # Composants React et hooks
+└── app/                 # Routes Next.js
+```
+
+**Patterns utilisés**
+- Repository Pattern pour l'abstraction de la couche données
+- Dependency Injection via container DI
+- DTO pour le transfert de données entre couches
+- Use Cases pour la logique métier isolée
+
+## Installation
+
+**Prérequis**
+- Node.js 18+
+- PostgreSQL ou compte Neon gratuit
+
+**Setup**
 
 ```bash
-# 1. Cloner le projet
-git clone https://github.com/votre-username/core-gmao.git
+# Cloner le projet
+git clone https://github.com/karAmmi12/core-gmao.git
 cd core-gmao
 
-# 2. Installer les dépendances
+# Installer les dépendances
 npm install
 
-# 3. Configurer les variables d'environnement
+# Configurer l'environnement
 cp .env.example .env
-# Éditez .env avec votre DATABASE_URL
+# Éditer .env avec vos credentials
 
-# 4. Initialiser la base de données
-npx prisma migrate dev
+# Initialiser la base de données
+npx prisma db push
+npx tsx prisma/seed.ts
 
-# 5. Lancer le serveur de développement
+# Lancer l'application
 npm run dev
 ```
 
-Ouvrez [http://localhost:3000](http://localhost:3000) pour voir l'application.
+L'application sera accessible sur [http://localhost:3000](http://localhost:3000)
 
-## 🧪 Technologies
+**Login par défaut:** `admin@gmao.local` / `Admin123!`
 
-- **Next.js 15** - Framework React avec App Router et Server Actions
-- **Prisma** - ORM avec Prisma Postgres
-- **TypeScript** - Typage statique
-- **Tailwind CSS** - Styling utility-first
-- **Zod** - Validation des schémas
-- **Lucide React** - Icônes
-- **Clean Architecture** - Organisation du code
+## Tests
+
+```bash
+npm test              # Lancer tous les tests
+npm test -- --watch   # Mode watch
+npm test -- --coverage # Coverage
+```
+
+## Déploiement
+
+L'application est déployée sur Vercel avec PostgreSQL hébergé sur Neon.
+
+**Variables d'environnement requises:**
+```env
+DATABASE_URL=postgresql://...
+NEXTAUTH_URL=https://votre-app.vercel.app
+NEXTAUTH_SECRET=xxxxx  # Générer avec: openssl rand -base64 32
+```
+
+Le déploiement est automatique via GitHub. Chaque push sur la branche main déclenche un nouveau déploiement.
+
+## Optimisations
+
+Plusieurs optimisations ont été mises en place pour améliorer les performances :
+
+- Batch loading pour éviter les problèmes N+1
+- Pagination côté serveur pour les grandes listes
+- Requêtes parallélisées sur le dashboard
+- Index PostgreSQL sur les colonnes critiques
+- Cache Next.js avec revalidation
+- Transactions avec retry automatique
 
 ## 📝 Scripts disponibles
 
