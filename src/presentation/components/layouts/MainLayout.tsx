@@ -215,11 +215,7 @@ function Header({ onMenuClick }: HeaderProps) {
       
       {/* Actions */}
       <div className="flex items-center gap-2 lg:gap-4">
-        {/* Notifications */}
-        <button className="relative p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger-500 rounded-full" />
-        </button>
+
         
         {/* User menu */}
         <div className="relative">
