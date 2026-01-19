@@ -113,7 +113,7 @@ export function DataForm<T = any>({
   // Mode normal (pour pages) : avec Card wrapper
   return (
     <Card className="w-full">
-      <CardHeader title={title} icon={icon} />
+      {title && <CardHeader title={title} icon={icon} />}
       
       {description && (
         <div className="px-6 pb-4 text-sm text-neutral-500 border-b border-neutral-100 mb-6">

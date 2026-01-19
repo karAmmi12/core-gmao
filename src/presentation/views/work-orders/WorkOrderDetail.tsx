@@ -310,8 +310,8 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
   
   // Complete action
   const [completeState, completeAction, isCompleting] = useActionState(
-    async (_: any, formData: FormData) => completeWorkOrderAction(formData),
-    null
+    completeWorkOrderAction,
+    { success: false }
   );
 
   // Start action
@@ -367,7 +367,7 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
     setIsStarting(true);
     const formData = new FormData();
     formData.set('workOrderId', workOrder.id);
-    const result = await startWorkOrderAction(formData);
+    const result = await startWorkOrderAction({ success: false }, formData);
     setStartState(result);
     setIsStarting(false);
     if (result?.success) {
@@ -381,7 +381,7 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
     const formData = new FormData();
     formData.set('workOrderId', workOrder.id);
     formData.set('reason', reason);
-    const result = await cancelWorkOrderAction(formData);
+    const result = await cancelWorkOrderAction({ success: false }, formData);
     setCancelState(result);
     setIsCancelling(false);
     setShowCancelModal(false);

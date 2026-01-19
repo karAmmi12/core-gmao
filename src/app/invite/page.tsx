@@ -13,7 +13,7 @@ export default function InvitePage() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
 
-  const [state, formAction, isPending] = useActionState(activateAccountAction, null);
+  const [state, formAction, isPending] = useActionState(activateAccountAction, { success: false });
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 

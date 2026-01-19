@@ -23,7 +23,7 @@ const CATEGORIES = [
 
 export default function NewPartPage() {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(createPartAction, null);
+  const [state, formAction, isPending] = useActionState(createPartAction, { success: false });
 
   // Rediriger vers la liste si succès
   useEffect(() => {

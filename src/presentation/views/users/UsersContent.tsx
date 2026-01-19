@@ -331,7 +331,7 @@ export function UsersContent({ users, currentUserId }: UsersContentProps) {
 // =============================================================================
 
 function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (data: any) => void }) {
-  const [state, formAction, isPending] = useActionState(createUserAction, null);
+  const [state, formAction, isPending] = useActionState(createUserAction, { success: false });
 
   if (state?.success) {
     onSuccess(state.data);
@@ -412,7 +412,7 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
 
 function EditUserModal({ user, onClose, isCurrentUser }: { user: UserDTO; onClose: () => void; isCurrentUser: boolean }) {
   const updateWithId = updateUserAction.bind(null, user.id);
-  const [state, formAction, isPending] = useActionState(updateWithId, null);
+  const [state, formAction, isPending] = useActionState(updateWithId, { success: false });
 
   if (state?.success) {
     onClose();

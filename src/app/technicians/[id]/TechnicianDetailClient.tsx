@@ -21,13 +21,13 @@ export function TechnicianDetailClient({ technician }: TechnicianDetailClientPro
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    const result = await deleteTechnicianAction(technician.id);
+    const result = await deleteTechnicianAction({ success: false }, technician.id);
     
     if (result?.success) {
       router.push('/technicians');
       router.refresh();
     } else {
-      alert(result?.error || 'Erreur lors de la suppression');
+      alert(result?.message || result?.error || 'Erreur lors de la suppression');
       setIsDeleting(false);
       setShowDeleteConfirm(false);
     }

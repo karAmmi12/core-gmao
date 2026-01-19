@@ -62,6 +62,7 @@ interface AnalyticsContentProps {
   statusDistribution: { status: string; count: number; percentage: number }[];
 }
 
+type Period = '7d' | '30d' | '90d' | '1y';
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: '7d', label: '7 jours' },

@@ -14,7 +14,7 @@ interface PageProps {
 
 export default function StockMovementPage({ params }: PageProps) {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(addStockMovementAction, null);
+  const [state, formAction, isPending] = useActionState(addStockMovementAction, { success: false });
   const [movementType, setMovementType] = useState<'IN' | 'OUT'>('IN');
   const [partId, setPartId] = useState<string>('');
 

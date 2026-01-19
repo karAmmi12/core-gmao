@@ -35,7 +35,7 @@ export interface WorkOrderPartDetails {
     status: string;
     unitPrice: number;
     totalPrice: number;
-}Summary
+}
 
 export interface OrdersByTypeStats {
     CORRECTIVE: number;
@@ -52,7 +52,7 @@ export interface WorkOrderRepository {
     findByAssignedTo(technicianId: string): Promise<WorkOrder[]>;
     findById(id:string): Promise<WorkOrder | null>;
     update(order: WorkOrder): Promise<void>;
-    findPending(): Promise<WorkOrder[]>;
+    findPending(): Promise<WorkOrderSummary[]>;
     countPending(): Promise<number>;
     countByType?(): Promise<OrdersByTypeStats>;
     addPart(workOrderId: string, partId: string, quantity: number, unitPrice: number): Promise<void>;

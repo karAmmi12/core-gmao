@@ -126,7 +126,7 @@ export const AssetInterventionHistory = ({ history, assetId }: AssetIntervention
 
                     {(order.status === 'DRAFT' || order.status === 'PLANNED' || order.status === 'IN_PROGRESS') && (
                       <form action={async (formData: FormData) => {
-                        await completeWorkOrderAction(formData);
+                        await completeWorkOrderAction({ success: false }, formData);
                       }}>
                         <input type="hidden" name="workOrderId" value={order.id} />
                         <input type="hidden" name="assetPath" value={`/assets/${assetId}`} />

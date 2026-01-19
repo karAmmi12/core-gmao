@@ -58,7 +58,7 @@ const MAINTENANCE_TYPES = [
 
 export default function WorkOrderForm({ assets, technicians, parts, priorities, userRole }: WorkOrderFormProps) {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(createWorkOrderAction, null);
+  const [state, formAction, isPending] = useActionState(createWorkOrderAction, { success: false });
   const canAssign = userRole === 'MANAGER' || userRole === 'ADMIN';
   const [selectedParts, setSelectedParts] = useState<SelectedPart[]>([]);
   const [selectedAssetId, setSelectedAssetId] = useState('');

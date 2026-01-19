@@ -93,7 +93,7 @@ export default function WorkOrdersContent({ workOrders, technicians, pagination 
     setLoadingId(orderId);
     const formData = new FormData();
     formData.set('workOrderId', orderId);
-    const result = await startWorkOrderAction(formData);
+    const result = await startWorkOrderAction({ success: false }, formData);
     setLoadingId(null);
     if (result?.success) {
       router.refresh();
@@ -105,7 +105,7 @@ export default function WorkOrdersContent({ workOrders, technicians, pagination 
     setLoadingId(orderId);
     const formData = new FormData();
     formData.set('workOrderId', orderId);
-    const result = await cancelWorkOrderAction(formData);
+    const result = await cancelWorkOrderAction({ success: false }, formData);
     setLoadingId(null);
     if (result?.success) {
       router.refresh();

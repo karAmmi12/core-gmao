@@ -20,7 +20,7 @@ export const AssetDetailCard = ({ asset }: AssetDetailCardProps) => {
     setIsChangingStatus(true);
     
     const formData = new FormData(e.currentTarget);
-    await updateAssetStatusAction(formData);
+    await updateAssetStatusAction({ success: false }, formData);
     
     setIsChangingStatus(false);
   };

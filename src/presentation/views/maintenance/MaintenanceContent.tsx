@@ -75,7 +75,7 @@ export function MaintenanceContent({ schedules, userRole }: MaintenanceContentPr
   const handleExecute = async (id: string) => {
     setExecuting(id);
     try {
-      await executeMaintenanceScheduleAction(id);
+      await executeMaintenanceScheduleAction({ success: false }, id);
     } finally {
       setExecuting(null);
     }
@@ -385,7 +385,7 @@ interface UpdateReadingModalProps {
 }
 
 function UpdateReadingModal({ schedule, onClose }: UpdateReadingModalProps) {
-  const [state, formAction, isPending] = useActionState(updateMaintenanceReadingAction, null);
+  const [state, formAction, isPending] = useActionState(updateMaintenanceReadingAction, { success: false });
 
   // Fermer le modal si succès
   if (state?.success) {

@@ -21,7 +21,7 @@ export function ConfigurationCategory({ category }: ConfigurationCategoryProps) 
   const handleDelete = async (itemId: string, label: string) => {
     if (!confirm(`Supprimer "${label}" ?`)) return;
 
-    const result = await deleteItemAction(itemId);
+    const result = await deleteItemAction({ success: false }, itemId);
     if (result?.error) {
       alert(`Erreur: ${result.error}`);
     }

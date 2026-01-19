@@ -14,7 +14,7 @@ import { PermissionService } from '@/core/domain/authorization/PermissionService
 import type { UserRole } from '@/core/domain/entities/User';
 
 export async function createAssetAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const rawData = {
@@ -46,6 +46,8 @@ export async function createAssetAction(
     const errors = validation.error.flatten().fieldErrors;
     const firstError = validation.error.issues?.[0];
     return {
+      success: false,
+      message: firstError?.message || "Erreur de validation",
       error: firstError?.message || "Erreur de validation",
       errors,
     };
@@ -65,14 +67,14 @@ export async function createAssetAction(
       modelNumber,
     });
     revalidatePath("/");
-    return { success: true };
+    return { success: true, message: "Équipement créé avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function createWorkOrderAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const rawData = {
@@ -96,7 +98,7 @@ export async function createWorkOrderAction(
       console.log("📦 Parsed parts:", parts);
     } catch (e) {
       console.error("❌ Error parsing parts:", e);
-      return { error: "Format de pièces invalide" };
+      return { success: false, message: "Format de pièces invalide", error: "Format de pièces invalide" };
     }
   }
 
@@ -120,6 +122,8 @@ export async function createWorkOrderAction(
     const errors = validation.error.flatten().fieldErrors;
     const firstError = validation.error.issues?.[0];
     return {
+      success: false,
+      message: firstError?.message || "Erreur de validation",
       error: firstError?.message || "Erreur de validation",
       errors,
     };
@@ -136,6 +140,8 @@ export async function createWorkOrderAction(
   // Les TECHNICIAN ne peuvent créer que des CORRECTIVE (pannes, observations)
   if (type === 'PREVENTIVE' && userRole === 'TECHNICIAN') {
     return {
+      success: false,
+      message: "Les techniciens ne peuvent pas créer d'interventions préventives. Les interventions préventives sont générées automatiquement depuis les plannings de maintenance.",
       error: "Les techniciens ne peuvent pas créer d'interventions préventives. Les interventions préventives sont générées automatiquement depuis les plannings de maintenance."
     };
   }
@@ -181,14 +187,15 @@ export async function createWorkOrderAction(
     revalidatePath("/inventory");
     revalidatePath("/part-requests"); // Rafraîchir aussi la page des demandes
     revalidatePath("/approvals"); // Rafraîchir la page des approbations
-    return { success: true };
+    return { success: true, message: "Intervention créée avec succès" };
   } catch (e: any) {
     console.error("❌ Use case error:", e);
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function completeWorkOrderAction(
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const workOrderId = formData.get("workOrderId") as string;
@@ -196,13 +203,13 @@ export async function completeWorkOrderAction(
   const laborCost = formData.get("laborCost") as string;
 
   if (!workOrderId) {
-    return { error: "ID intervention manquant" };
+    return { success: false, message: "ID intervention manquant", error: "ID intervention manquant" };
   }
 
   // Vérifier l'authentification
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return { error: 'Non authentifié' };
+    return { success: false, message: 'Non authentifié', error: 'Non authentifié' };
   }
 
   const workOrderRepo = DIContainer.getWorkOrderRepository();
@@ -211,7 +218,7 @@ export async function completeWorkOrderAction(
   try {
     const workOrder = await workOrderRepo.findById(workOrderId);
     if (!workOrder) {
-      return { error: "Intervention non trouvée" };
+      return { success: false, message: "Intervention non trouvée", error: "Intervention non trouvée" };
     }
 
     // Vérifier les permissions
@@ -227,8 +234,11 @@ export async function completeWorkOrderAction(
     );
 
     if (!canComplete) {
+      const errorMsg = PermissionService.getPermissionErrorMessage('complete', session.user.role as UserRole);
       return {
-        error: PermissionService.getPermissionErrorMessage('complete', session.user.role as UserRole)
+        success: false,
+        message: errorMsg,
+        error: errorMsg
       };
     }
 
@@ -259,25 +269,26 @@ export async function completeWorkOrderAction(
     }
 
     revalidatePath('/work-orders');
-    return { success: true };
+    return { success: true, message: "Intervention terminée avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function startWorkOrderAction(
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const workOrderId = formData.get("workOrderId") as string;
 
   if (!workOrderId) {
-    return { error: "ID intervention manquant" };
+    return { success: false, message: "ID intervention manquant", error: "ID intervention manquant" };
   }
 
   // Vérifier l'authentification
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return { error: 'Non authentifié' };
+    return { success: false, message: 'Non authentifié', error: 'Non authentifié' };
   }
 
   const workOrderRepo = DIContainer.getWorkOrderRepository();
@@ -285,7 +296,7 @@ export async function startWorkOrderAction(
   try {
     const workOrder = await workOrderRepo.findById(workOrderId);
     if (!workOrder) {
-      return { error: "Intervention non trouvée" };
+      return { success: false, message: "Intervention non trouvée", error: "Intervention non trouvée" };
     }
 
     // Vérifier les permissions
@@ -301,34 +312,38 @@ export async function startWorkOrderAction(
     );
 
     if (!canStart) {
+      const errorMsg = PermissionService.getPermissionErrorMessage('start', session.user.role as UserRole);
       return {
-        error: PermissionService.getPermissionErrorMessage('start', session.user.role as UserRole)
+        success: false,
+        message: errorMsg,
+        error: errorMsg
       };
     }
 
     workOrder.startWork();
     await workOrderRepo.update(workOrder);
     revalidatePath('/work-orders');
-    return { success: true };
+    return { success: true, message: "Intervention démarrée avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function cancelWorkOrderAction(
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const workOrderId = formData.get("workOrderId") as string;
   const reason = formData.get("reason") as string;
 
   if (!workOrderId) {
-    return { error: "ID intervention manquant" };
+    return { success: false, message: "ID intervention manquant", error: "ID intervention manquant" };
   }
 
   // Vérifier l'authentification
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return { error: 'Non authentifié' };
+    return { success: false, message: 'Non authentifié', error: 'Non authentifié' };
   }
 
   const workOrderRepo = DIContainer.getWorkOrderRepository();
@@ -336,7 +351,7 @@ export async function cancelWorkOrderAction(
   try {
     const workOrder = await workOrderRepo.findById(workOrderId);
     if (!workOrder) {
-      return { error: "Intervention non trouvée" };
+      return { success: false, message: "Intervention non trouvée", error: "Intervention non trouvée" };
     }
 
     // Vérifier les permissions (utiliser 'delete' pour cancel)
@@ -352,21 +367,25 @@ export async function cancelWorkOrderAction(
     );
 
     if (!canCancel) {
+      const errorMsg = PermissionService.getPermissionErrorMessage('delete', session.user.role as UserRole);
       return {
-        error: PermissionService.getPermissionErrorMessage('delete', session.user.role as UserRole)
+        success: false,
+        message: errorMsg,
+        error: errorMsg
       };
     }
 
     workOrder.cancel(reason || undefined);
     await workOrderRepo.update(workOrder);
     revalidatePath('/work-orders');
-    return { success: true };
+    return { success: true, message: "Intervention annulée avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function updateWorkOrderAction(
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const workOrderId = formData.get("workOrderId") as string;
@@ -379,13 +398,13 @@ export async function updateWorkOrderAction(
   const estimatedDuration = formData.get("estimatedDuration") as string;
 
   if (!workOrderId) {
-    return { error: "ID intervention manquant" };
+    return { success: false, message: "ID intervention manquant", error: "ID intervention manquant" };
   }
 
   // Vérifier l'authentification
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return { error: 'Non authentifié' };
+    return { success: false, message: 'Non authentifié', error: 'Non authentifié' };
   }
 
   const workOrderRepo = DIContainer.getWorkOrderRepository();
@@ -393,7 +412,7 @@ export async function updateWorkOrderAction(
   try {
     const workOrder = await workOrderRepo.findById(workOrderId);
     if (!workOrder) {
-      return { error: "Intervention non trouvée" };
+      return { success: false, message: "Intervention non trouvée", error: "Intervention non trouvée" };
     }
 
     // Vérifier les permissions
@@ -409,8 +428,11 @@ export async function updateWorkOrderAction(
     );
 
     if (!canUpdate) {
+      const errorMsg = PermissionService.getPermissionErrorMessage('update', session.user.role as UserRole);
       return {
-        error: PermissionService.getPermissionErrorMessage('update', session.user.role as UserRole)
+        success: false,
+        message: errorMsg,
+        error: errorMsg
       };
     }
 
@@ -436,13 +458,14 @@ export async function updateWorkOrderAction(
     await workOrderRepo.update(workOrder);
     revalidatePath('/work-orders');
     revalidatePath(`/work-orders/${workOrderId}`);
-    return { success: true };
+    return { success: true, message: "Intervention mise à jour avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function updateAssetStatusAction(
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const assetId = formData.get("assetId") as string;
@@ -450,11 +473,11 @@ export async function updateAssetStatusAction(
   const currentPath = formData.get("currentPath") as string;
 
   if (!assetId || !newStatus) {
-    return { error: "Données manquantes" };
+    return { success: false, message: "Données manquantes", error: "Données manquantes" };
   }
 
   if (!['RUNNING', 'STOPPED', 'MAINTENANCE'].includes(newStatus)) {
-    return { error: "Statut invalide" };
+    return { success: false, message: "Statut invalide", error: "Statut invalide" };
   }
 
   const { UpdateAssetStatusUseCase } = await import("@/core/application/use-cases/UpdateAssetStatusUseCase");
@@ -464,14 +487,14 @@ export async function updateAssetStatusAction(
   try {
     await useCase.execute(assetId, newStatus as any);
     revalidatePath(currentPath || "/");
-    return { success: true };
+    return { success: true, message: "Statut de l'équipement mis à jour avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function createPartAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const rawData = {
@@ -490,7 +513,8 @@ export async function createPartAction(
   
   const validationResult = createPartSchema.safeParse(rawData);
   if (!validationResult.success) {
-    return { error: validationResult.error.issues[0].message };
+    const errorMsg = validationResult.error.issues[0].message;
+    return { success: false, message: errorMsg, error: errorMsg };
   }
 
   const { CreatePartUseCase } = await import("@/core/application/use-cases/CreatePartUseCase");
@@ -500,14 +524,14 @@ export async function createPartAction(
   try {
     const result = await useCase.execute(validationResult.data);
     revalidatePath("/inventory");
-    return { success: true, data: { id: result.id } };
+    return { success: true, message: "Pièce créée avec succès", data: { id: result.id } };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function addStockMovementAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const rawData = {
@@ -522,7 +546,8 @@ export async function addStockMovementAction(
   
   const validationResult = addStockMovementSchema.safeParse(rawData);
   if (!validationResult.success) {
-    return { error: validationResult.error.issues[0].message };
+    const errorMsg = validationResult.error.issues[0].message;
+    return { success: false, message: errorMsg, error: errorMsg };
   }
 
   const { AddStockMovementUseCase } = await import("@/core/application/use-cases/AddStockMovementUseCase");
@@ -534,25 +559,27 @@ export async function addStockMovementAction(
     await useCase.execute(validationResult.data);
     revalidatePath("/inventory");
     revalidatePath(`/inventory/${rawData.partId}`);
-    return { success: true };
+    return { success: true, message: "Mouvement de stock enregistré avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function createMaintenanceScheduleAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   // Vérifier l'authentification et les permissions
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return { error: 'Non authentifié' };
+    return { success: false, message: 'Non authentifié', error: 'Non authentifié' };
   }
 
   const userRole = session.user.role as string;
   if (userRole !== 'MANAGER' && userRole !== 'ADMIN') {
     return {
+      success: false,
+      message: "Seuls les responsables et administrateurs peuvent créer des plannings de maintenance préventive.",
       error: "Seuls les responsables et administrateurs peuvent créer des plannings de maintenance préventive."
     };
   }
@@ -604,6 +631,8 @@ export async function createMaintenanceScheduleAction(
     const errors = validationResult.error.flatten().fieldErrors;
     const firstError = validationResult.error.issues?.[0];
     return {
+      success: false,
+      message: firstError?.message || "Erreur de validation",
       error: firstError?.message || "Erreur de validation",
       errors,
     };
@@ -617,24 +646,27 @@ export async function createMaintenanceScheduleAction(
   try {
     await useCase.execute(validationResult.data);
     revalidatePath("/maintenance");
-    return { success: true };
+    return { success: true, message: "Planning de maintenance créé avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function executeMaintenanceScheduleAction(
+  previousState: ActionState,
   scheduleId: string
 ): Promise<ActionState> {
   // Vérifier l'authentification et les permissions
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return { error: 'Non authentifié' };
+    return { success: false, message: 'Non authentifié', error: 'Non authentifié' };
   }
 
   const userRole = session.user.role as string;
   if (userRole !== 'MANAGER' && userRole !== 'ADMIN') {
     return {
+      success: false,
+      message: "Seuls les responsables et administrateurs peuvent exécuter des plannings de maintenance.",
       error: "Seuls les responsables et administrateurs peuvent exécuter des plannings de maintenance."
     };
   }
@@ -648,32 +680,34 @@ export async function executeMaintenanceScheduleAction(
     await useCase.execute(scheduleId);
     revalidatePath("/maintenance");
     revalidatePath("/");
-    return { success: true };
+    return { success: true, message: "Planning de maintenance exécuté avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function updateMaintenanceScheduleAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   // Vérifier l'authentification et les permissions
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return { error: 'Non authentifié' };
+    return { success: false, message: 'Non authentifié', error: 'Non authentifié' };
   }
 
   const userRole = session.user.role as string;
   if (userRole !== 'MANAGER' && userRole !== 'ADMIN') {
     return {
+      success: false,
+      message: "Seuls les responsables et administrateurs peuvent modifier des plannings de maintenance.",
       error: "Seuls les responsables et administrateurs peuvent modifier des plannings de maintenance."
     };
   }
 
   const scheduleId = formData.get("scheduleId") as string;
   if (!scheduleId) {
-    return { error: "ID du planning manquant" };
+    return { success: false, message: "ID du planning manquant", error: "ID du planning manquant" };
   }
 
   const triggerType = formData.get("triggerType") as string;
@@ -726,6 +760,8 @@ export async function updateMaintenanceScheduleAction(
     const errors = validationResult.error.flatten().fieldErrors;
     const firstError = validationResult.error.issues?.[0];
     return {
+      success: false,
+      message: firstError?.message || "Erreur de validation",
       error: firstError?.message || "Erreur de validation",
       errors,
     };
@@ -740,32 +776,34 @@ export async function updateMaintenanceScheduleAction(
     await useCase.execute(scheduleId, validationResult.data);
     revalidatePath("/maintenance");
     revalidatePath(`/maintenance/${scheduleId}/edit`);
-    return { success: true };
+    return { success: true, message: "Planning de maintenance mis à jour avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function updateMaintenanceReadingAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const scheduleId = formData.get("scheduleId") as string;
   const currentValue = parseFloat(formData.get("currentValue") as string);
 
   if (!scheduleId || isNaN(currentValue)) {
-    return { error: "Données invalides" };
+    return { success: false, message: "Données invalides", error: "Données invalides" };
   }
 
   // Vérifier l'authentification et les permissions
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return { error: 'Non authentifié' };
+    return { success: false, message: 'Non authentifié', error: 'Non authentifié' };
   }
 
   const userRole = session.user.role as string;
   if (userRole !== 'MANAGER' && userRole !== 'ADMIN') {
     return {
+      success: false,
+      message: "Seuls les responsables et administrateurs peuvent mettre à jour les relevés de maintenance.",
       error: "Seuls les responsables et administrateurs peuvent mettre à jour les relevés de maintenance."
     };
   }
@@ -777,9 +815,9 @@ export async function updateMaintenanceReadingAction(
   try {
     await useCase.execute({ scheduleId, currentValue });
     revalidatePath("/maintenance");
-    return { success: true };
+    return { success: true, message: "Relevé de maintenance mis à jour avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
@@ -794,7 +832,7 @@ import { DeleteTechnicianUseCase } from "@/core/application/use-cases/DeleteTech
 import type { TechnicianDTO } from "@/core/application/dto/TechnicianDTO";
 
 export async function createTechnicianAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const rawSkills = formData.getAll("skills") as string[];
@@ -812,6 +850,8 @@ export async function createTechnicianAction(
     const errors = validation.error.flatten().fieldErrors;
     const firstError = validation.error.issues?.[0];
     return {
+      success: false,
+      message: firstError?.message || "Erreur de validation",
       error: firstError?.message || "Erreur de validation",
       errors,
     };
@@ -828,14 +868,14 @@ export async function createTechnicianAction(
       skills: validation.data.skills as any,
     });
     revalidatePath("/technicians");
-    return { success: true };
+    return { success: true, message: "Technicien créé avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function updateTechnicianAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const id = formData.get("id") as string;
@@ -855,6 +895,8 @@ export async function updateTechnicianAction(
     const errors = validation.error.flatten().fieldErrors;
     const firstError = validation.error.issues?.[0];
     return {
+      success: false,
+      message: firstError?.message || "Erreur de validation",
       error: firstError?.message || "Erreur de validation",
       errors,
     };
@@ -874,22 +916,22 @@ export async function updateTechnicianAction(
     });
     revalidatePath("/technicians");
     revalidatePath(`/technicians/${id}`);
-    return { success: true };
+    return { success: true, message: "Technicien mis à jour avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
-export async function deleteTechnicianAction(id: string): Promise<ActionState> {
+export async function deleteTechnicianAction(previousState: ActionState, id: string): Promise<ActionState> {
   const technicianRepo = DIContainer.getTechnicianRepository();
   const useCase = new DeleteTechnicianUseCase(technicianRepo);
 
   try {
     await useCase.execute(id);
     revalidatePath("/technicians");
-    return { success: true };
+    return { success: true, message: "Technicien supprimé avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
@@ -908,7 +950,7 @@ import {
 } from "@/core/application/validation/ConfigurationSchemas";
 
 export async function createCategoryAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const rawData = {
@@ -931,6 +973,8 @@ export async function createCategoryAction(
     const errors = validation.error.flatten().fieldErrors;
     const firstError = validation.error.issues?.[0];
     return {
+      success: false,
+      message: firstError?.message || "Erreur de validation",
       error: firstError?.message || "Erreur de validation",
       errors,
     };
@@ -942,14 +986,14 @@ export async function createCategoryAction(
   try {
     await useCase.execute(validation.data);
     revalidatePath("/settings");
-    return { success: true };
+    return { success: true, message: "Catégorie créée avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function createItemAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const rawData = {
@@ -991,6 +1035,8 @@ export async function createItemAction(
     const errors = validation.error.flatten().fieldErrors;
     const firstError = validation.error.issues?.[0];
     return {
+      success: false,
+      message: firstError?.message || "Erreur de validation",
       error: firstError?.message || "Erreur de validation",
       errors,
     };
@@ -1002,15 +1048,15 @@ export async function createItemAction(
   try {
     await useCase.execute(validation.data);
     revalidatePath("/settings");
-    return { success: true };
+    return { success: true, message: "Élément créé avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function updateItemAction(
   itemId: string,
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const rawData = {
@@ -1049,6 +1095,8 @@ export async function updateItemAction(
     const errors = validation.error.flatten().fieldErrors;
     const firstError = validation.error.issues?.[0];
     return {
+      success: false,
+      message: firstError?.message || "Erreur de validation",
       error: firstError?.message || "Erreur de validation",
       errors,
     };
@@ -1060,22 +1108,22 @@ export async function updateItemAction(
   try {
     await useCase.execute(itemId, validation.data);
     revalidatePath("/settings");
-    return { success: true };
+    return { success: true, message: "Élément mis à jour avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
-export async function deleteItemAction(itemId: string): Promise<ActionState> {
+export async function deleteItemAction(previousState: ActionState, itemId: string): Promise<ActionState> {
   const configRepo = DIContainer.getConfigurationRepository();
   const useCase = new DeleteItemUseCase(configRepo);
 
   try {
     await useCase.execute(itemId);
     revalidatePath("/settings");
-    return { success: true };
+    return { success: true, message: "Élément supprimé avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
@@ -1084,7 +1132,7 @@ export async function deleteItemAction(itemId: string): Promise<ActionState> {
 // =============================================================================
 
 export async function createUserAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const { getServerSession } = await import('next-auth');
@@ -1092,7 +1140,7 @@ export async function createUserAction(
   
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'ADMIN') {
-    return { error: "Accès non autorisé" };
+    return { success: false, message: "Accès non autorisé", error: "Accès non autorisé" };
   }
 
   const rawData = {
@@ -1106,7 +1154,8 @@ export async function createUserAction(
 
   if (!validation.success) {
     const errors = validation.error.flatten().fieldErrors;
-    return { error: validation.error.issues[0]?.message || "Erreur de validation", errors };
+    const errorMsg = validation.error.issues[0]?.message || "Erreur de validation";
+    return { success: false, message: errorMsg, error: errorMsg, errors };
   }
 
   const userRepo = DIContainer.getUserRepository();
@@ -1114,7 +1163,7 @@ export async function createUserAction(
   // Vérifier si l'email existe déjà
   const exists = await userRepo.existsByEmail(validation.data.email);
   if (exists) {
-    return { error: "Un utilisateur avec cet email existe déjà" };
+    return { success: false, message: "Un utilisateur avec cet email existe déjà", error: "Un utilisateur avec cet email existe déjà" };
   }
 
   try {
@@ -1129,15 +1178,15 @@ export async function createUserAction(
     });
 
     revalidatePath("/users");
-    return { success: true, data: { inviteToken: result.inviteToken } };
+    return { success: true, message: "Utilisateur créé avec succès", data: { inviteToken: result.inviteToken } };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function updateUserAction(
   userId: string,
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const { getServerSession } = await import('next-auth');
@@ -1145,7 +1194,7 @@ export async function updateUserAction(
   
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'ADMIN') {
-    return { error: "Accès non autorisé" };
+    return { success: false, message: "Accès non autorisé", error: "Accès non autorisé" };
   }
 
   const rawData = {
@@ -1158,14 +1207,15 @@ export async function updateUserAction(
   const validation = UpdateUserSchema.safeParse(rawData);
 
   if (!validation.success) {
-    return { error: validation.error.issues[0]?.message || "Erreur de validation" };
+    const errorMsg = validation.error.issues[0]?.message || "Erreur de validation";
+    return { success: false, message: errorMsg, error: errorMsg };
   }
 
   const userRepo = DIContainer.getUserRepository();
   const user = await userRepo.findById(userId);
 
   if (!user) {
-    return { error: "Utilisateur non trouvé" };
+    return { success: false, message: "Utilisateur non trouvé", error: "Utilisateur non trouvé" };
   }
 
   try {
@@ -1184,9 +1234,9 @@ export async function updateUserAction(
 
     await userRepo.update(updatedUser);
     revalidatePath("/users");
-    return { success: true };
+    return { success: true, message: "Utilisateur mis à jour avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
@@ -1196,27 +1246,27 @@ export async function resendInviteAction(userId: string): Promise<ActionState> {
   
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'ADMIN') {
-    return { error: "Accès non autorisé" };
+    return { success: false, message: "Accès non autorisé", error: "Accès non autorisé" };
   }
 
   const userRepo = DIContainer.getUserRepository();
   const user = await userRepo.findById(userId);
 
   if (!user) {
-    return { error: "Utilisateur non trouvé" };
+    return { success: false, message: "Utilisateur non trouvé", error: "Utilisateur non trouvé" };
   }
 
   if (user.isActive) {
-    return { error: "L'utilisateur est déjà actif" };
+    return { success: false, message: "L'utilisateur est déjà actif", error: "L'utilisateur est déjà actif" };
   }
 
   try {
     const updatedUser = user.regenerateInvite();
     await userRepo.update(updatedUser);
     revalidatePath("/users");
-    return { success: true, data: { inviteToken: updatedUser.inviteToken } };
+    return { success: true, message: "Invitation renvoyée avec succès", data: { inviteToken: updatedUser.inviteToken } };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
@@ -1226,11 +1276,11 @@ export async function deleteUserAction(userId: string): Promise<ActionState> {
   
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'ADMIN') {
-    return { error: "Accès non autorisé" };
+    return { success: false, message: "Accès non autorisé", error: "Accès non autorisé" };
   }
 
   if (session.user.id === userId) {
-    return { error: "Vous ne pouvez pas supprimer votre propre compte" };
+    return { success: false, message: "Vous ne pouvez pas supprimer votre propre compte", error: "Vous ne pouvez pas supprimer votre propre compte" };
   }
 
   const userRepo = DIContainer.getUserRepository();
@@ -1238,14 +1288,14 @@ export async function deleteUserAction(userId: string): Promise<ActionState> {
   try {
     await userRepo.delete(userId);
     revalidatePath("/users");
-    return { success: true };
+    return { success: true, message: "Utilisateur supprimé avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
 
 export async function activateAccountAction(
-  previousState: ActionState | null,
+  previousState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const token = formData.get("token") as string;
@@ -1256,25 +1306,26 @@ export async function activateAccountAction(
   const validation = ActivateAccountSchema.safeParse({ token, password, confirmPassword });
 
   if (!validation.success) {
-    return { error: validation.error.issues[0]?.message || "Erreur de validation" };
+    const errorMsg = validation.error.issues[0]?.message || "Erreur de validation";
+    return { success: false, message: errorMsg, error: errorMsg };
   }
 
   const userRepo = DIContainer.getUserRepository();
   const user = await userRepo.findByInviteToken(token);
 
   if (!user) {
-    return { error: "Lien d'invitation invalide ou expiré" };
+    return { success: false, message: "Lien d'invitation invalide ou expiré", error: "Lien d'invitation invalide ou expiré" };
   }
 
   if (!user.isInviteValid()) {
-    return { error: "Le lien d'invitation a expiré. Contactez l'administrateur." };
+    return { success: false, message: "Le lien d'invitation a expiré. Contactez l'administrateur.", error: "Le lien d'invitation a expiré. Contactez l'administrateur." };
   }
 
   try {
     const activatedUser = await user.activate(password);
     await userRepo.update(activatedUser);
-    return { success: true };
+    return { success: true, message: "Compte activé avec succès" };
   } catch (e: any) {
-    return { error: e.message };
+    return { success: false, message: e.message, error: e.message };
   }
 }
