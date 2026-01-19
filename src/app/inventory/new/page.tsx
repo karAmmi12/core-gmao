@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -26,9 +26,11 @@ export default function NewPartPage() {
   const [state, formAction, isPending] = useActionState(createPartAction, null);
 
   // Rediriger vers la liste si succès
-  if (state?.success && state.data?.id) {
-    router.push(`/inventory/${state.data.id}`);
-  }
+  useEffect(() => {
+    if (state?.success && state.data?.id) {
+      router.push(`/inventory/${state.data.id}`);
+    }
+  }, [state?.success, state?.data?.id, router]);
 
   return (
     <MainLayout>

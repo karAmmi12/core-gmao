@@ -561,7 +561,7 @@ export const FormSuccess = ({ message }: { message: string }) => (
 // =============================================================================
 
 const MODAL_STYLES = {
-  overlay: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4',
+  overlay: 'fixed inset-0  flex items-center justify-center z-50 p-4 bg-black/50',
   container: {
     sm: 'max-w-md w-full',
     md: 'max-w-lg w-full',
@@ -588,7 +588,7 @@ export function Modal({ title, isOpen = true, onClose, children, size = 'md' }: 
   return (
     <div className={MODAL_STYLES.overlay} onClick={onClose}>
       <div 
-        className={cn(MODAL_STYLES.container[size], MODAL_STYLES.scroll, 'bg-white rounded-lg shadow-xl border border-neutral-200')}
+        className={cn(MODAL_STYLES.container[size], MODAL_STYLES.scroll, 'bg-white rounded-lg shadow-xl border p-4 border-neutral-200')}
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         <div className={MODAL_STYLES.header}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, TrendingUp, TrendingDown } from 'lucide-react';
@@ -19,14 +19,18 @@ export default function StockMovementPage({ params }: PageProps) {
   const [partId, setPartId] = useState<string>('');
 
   // Charger l'ID de la pièce
-  params.then(({ id }) => {
-    if (!partId) setPartId(id);
-  });
+  useEffect(() => {
+    params.then(({ id }) => {
+      if (!partId) setPartId(id);
+    });
+  }, [params, partId]);
 
   // Rediriger vers la page de détails si succès
-  if (state?.success) {
-    router.push(`/inventory/${partId}`);
-  }
+  useEffect(() => {
+    if (state?.success && partId) {
+      router.push(`/inventory/${partId}`);
+    }
+  }, [state?.success, partId, router]);
 
   return (
     <MainLayout>

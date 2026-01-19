@@ -65,10 +65,124 @@ async function main() {
   await prisma.part.deleteMany();
   await prisma.technician.deleteMany();
   await prisma.asset.deleteMany();
+  await prisma.configurationItem.deleteMany();
+  await prisma.configurationCategory.deleteMany();
   await prisma.user.deleteMany();
   console.log('✅ Données existantes supprimées\n');
 
-  // 0. CRÉER LES UTILISATEURS
+  // 0. CRÉER LES CATÉGORIES DE CONFIGURATION
+  console.log('⚙️  Création des catégories de configuration...\n');
+
+  const assetTypeCategory = await prisma.configurationCategory.create({
+    data: {
+      id: uuidv4(),
+      code: 'ASSET_TYPE',
+      name: 'Types d\'équipements',
+      description: 'Catégories de machines et équipements',
+      isActive: true,
+    },
+  });
+
+  const assetTypes = [
+    { code: 'CNC', label: 'Machine CNC', color: '#3B82F6', icon: '🔧' },
+    { code: 'PRESS', label: 'Presse', color: '#EF4444', icon: '⚡' },
+    { code: 'ROBOT', label: 'Robot', color: '#8B5CF6', icon: '🤖' },
+    { code: 'CONVEYOR', label: 'Convoyeur', color: '#10B981', icon: '📦' },
+    { code: 'LASER', label: 'Laser', color: '#F59E0B', icon: '🔥' },
+    { code: 'PUMP', label: 'Pompe', color: '#06B6D4', icon: '💧' },
+  ];
+
+  for (const type of assetTypes) {
+    await prisma.configurationItem.create({
+      data: {
+        id: uuidv4(),
+        categoryId: assetTypeCategory.id,
+        code: type.code,
+        label: type.label,
+        color: type.color,
+        icon: type.icon,
+        isActive: true,
+        sortOrder: 0,
+      },
+    });
+  }
+  console.log(`  ✓ Catégorie ${assetTypeCategory.name} avec ${assetTypes.length} items`);
+
+  const partCategoryConfig = await prisma.configurationCategory.create({
+    data: {
+      id: uuidv4(),
+      code: 'PART_CATEGORY',
+      name: 'Catégories de pièces',
+      description: 'Classification des pièces détachées',
+      isActive: true,
+    },
+  });
+
+  const partCats = [
+    { code: 'FILTERS', label: 'Filtres', color: '#3B82F6' },
+    { code: 'SEALS', label: 'Joints', color: '#EF4444' },
+    { code: 'BEARINGS', label: 'Roulements', color: '#8B5CF6' },
+    { code: 'BELTS', label: 'Courroies', color: '#10B981' },
+    { code: 'LUBRICANTS', label: 'Lubrifiants', color: '#F59E0B' },
+    { code: 'ELECTRICAL', label: 'Électricité', color: '#06B6D4' },
+    { code: 'PNEUMATIC', label: 'Pneumatique', color: '#EC4899' },
+    { code: 'HYDRAULIC', label: 'Hydraulique', color: '#F97316' },
+    { code: 'SENSORS', label: 'Capteurs', color: '#14B8A6' },
+    { code: 'CONSUMABLES', label: 'Consommables', color: '#6366F1' },
+  ];
+
+  for (const cat of partCats) {
+    await prisma.configurationItem.create({
+      data: {
+        id: uuidv4(),
+        categoryId: partCategoryConfig.id,
+        code: cat.code,
+        label: cat.label,
+        color: cat.color,
+        isActive: true,
+        sortOrder: 0,
+      },
+    });
+  }
+  console.log(`  ✓ Catégorie ${partCategoryConfig.name} avec ${partCats.length} items`);
+
+  const skillCategory = await prisma.configurationCategory.create({
+    data: {
+      id: uuidv4(),
+      code: 'TECHNICIAN_SKILL',
+      name: 'Compétences techniciens',
+      description: 'Compétences et spécialités des techniciens',
+      isActive: true,
+    },
+  });
+
+  const skills = [
+    { code: 'MECHANICS', label: 'Mécanique', color: '#3B82F6' },
+    { code: 'ELECTRONICS', label: 'Électronique', color: '#EF4444' },
+    { code: 'HYDRAULICS', label: 'Hydraulique', color: '#06B6D4' },
+    { code: 'PNEUMATICS', label: 'Pneumatique', color: '#8B5CF6' },
+    { code: 'AUTOMATION', label: 'Automatisme', color: '#10B981' },
+    { code: 'ROBOTICS', label: 'Robotique', color: '#F59E0B' },
+  ];
+
+  for (const skill of skills) {
+    await prisma.configurationItem.create({
+      data: {
+        id: uuidv4(),
+        categoryId: skillCategory.id,
+        code: skill.code,
+        label: skill.label,
+        color: skill.color,
+        isActive: true,
+        sortOrder: 0,
+      },
+    });
+  }
+  console.log(`  ✓ Catégorie ${skillCategory.name} avec ${skills.length} items`);
+
+  console.log(`\n✅ ${assetTypes.length + partCats.length + skills.length} items de configuration créés\n`);
+
+  // 1. CRÉER LES UTILISATEURS
   console.log('👥 Création des utilisateurs...\n');
 
   const adminPassword = await bcrypt.hash('Admin123!', 12);

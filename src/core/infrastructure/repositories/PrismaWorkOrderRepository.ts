@@ -1,4 +1,4 @@
-import { WorkOrderRepository, PaginatedResult, WorkOrderPartDetails } from "@/core/domain/repositories/WorkOrderRepository";
+import { WorkOrderRepository, PaginatedResult, WorkOrderPartDetails, WorkOrderSummary } from "@/core/domain/repositories/WorkOrderRepository";
 import { WorkOrder, OrderStatus, OrderPriority, MaintenanceType } from "@/core/domain/entities/WorkOrder";
 import { prisma } from "@/lib/prisma";
 
@@ -237,6 +237,37 @@ export class PrismaWorkOrderRepository implements WorkOrderRepository {
         totalCost: order.totalCost,
       },
     });
+  }
+
+  async findPending(): Promise<WorkOrderSummary[]> {
+    const rawWorkOrders = await prisma.workOrder.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        asset: { select: { id: true, name: true } },
+        assignedTo: { select: { id: true, name: true } },
+      },
+      orderBy: [
+        { priority: 'desc' }, // Urgences en premier
+        { createdAt: 'asc' }, // Plus anciennes en premier
+      ],
+    });
+
+    return rawWorkOrders.map(wo => ({
+      id: wo.id,
+      title: wo.title,
+      status: wo.status as any, // Type compatible grâce à l'interface
+      priority: wo.priority as any,
+      type: wo.type as any,
+      assetId: wo.assetId,
+      assetName: wo.asset.name,
+      assignedToId: wo.assignedToId || undefined,
+      assignedToName: wo.assignedTo?.name || undefined,
+      createdAt: wo.createdAt,
+      scheduledAt: wo.scheduledAt || undefined,
+      description: wo.description || undefined,
+      estimatedCost: wo.estimatedCost || undefined,
+      requiresApproval: wo.requiresApproval,
+    }));
   }
 
   async countPending(): Promise<number> {

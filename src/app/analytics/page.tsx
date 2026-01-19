@@ -6,7 +6,7 @@ import { MainLayout, PageHeader, StatsGrid, StatCard, Button } from '@/component
 import DIContainer from '@/core/infrastructure/di/DIContainer';
 import { AnalyticsContent } from '@/views/analytics/AnalyticsContent';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export default async function AnalyticsPage() {
   const analyticsService = DIContainer.getAnalyticsService();

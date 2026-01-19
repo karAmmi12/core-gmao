@@ -116,6 +116,35 @@ export class WorkOrder {
   }
 
   /**
+   * Approuve une intervention en attente.
+   * Passage du statut PENDING -> APPROVED.
+   */
+  approve(approverId: string): void {
+    if (this.status !== 'PENDING') {
+      throw new Error("Seules les interventions en attente (PENDING) peuvent être approuvées.");
+    }
+    
+    (this as any).status = 'APPROVED';
+    (this as any).approvedById = approverId;
+    (this as any).approvedAt = new Date();
+  }
+
+  /**
+   * Rejette une intervention en attente.
+   * Passage du statut PENDING -> REJECTED.
+   */
+  reject(rejectorId: string, reason: string): void {
+    if (this.status !== 'PENDING') {
+      throw new Error("Seules les interventions en attente (PENDING) peuvent être rejetées.");
+    }
+    
+    (this as any).status = 'REJECTED';
+    (this as any).approvedById = rejectorId; // On garde trace de qui a rejeté dans le champ approvedById (ou rejectedBy si on voulait être puriste mais le schéma semble utiliser ça)
+    (this as any).approvedAt = new Date();
+    (this as any).rejectionReason = reason;
+  }
+
+  /**
    * Marque l'intervention comme terminée (complétion rapide)
    * 
    * Cette méthode est utilisée pour la complétion simple en une seule étape.

@@ -4,7 +4,7 @@
 
 import { notFound } from 'next/navigation';
 import { MainLayout, PageHeader, LinkButton, Card, Badge, Button } from '@/components';
-import { TechnicianForm } from '@/presentation/components/features/forms/TechnicianForm';
+import { TechnicianForm } from '@/presentation/components/features/technicians/TechnicianForm';
 import { GetTechnicianDetailsUseCase } from '@/core/application/use-cases/GetTechnicianDetailsUseCase';
 import DIContainer from '@/core/infrastructure/di/DIContainer';
 import { TechnicianDetailClient } from './TechnicianDetailClient';

@@ -7,8 +7,8 @@ import { authOptions } from '@/shared/lib/auth';
 import { redirect } from 'next/navigation';
 import { MaintenanceScheduleMapper } from '@/core/application/dto/MaintenanceScheduleDTO';
 
-export const dynamic = 'force-dynamic';
 export const revalidate = 60; // Cache pendant 60 secondes pour optimiser les performances
+
 
 export default async function DashboardPage() {
   // Vérifier l'authentification

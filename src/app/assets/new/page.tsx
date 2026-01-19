@@ -3,7 +3,7 @@
  */
 
 import { MainLayout, PageHeader, LinkButton } from '@/components';
-import { AssetForm } from '@/presentation/components/forms/AssetForm';
+import { AssetForm } from '@/presentation/components/features/assets/AssetForm';
 import { AssetService } from '@/core/application/services/AssetService';
 import { ConfigurationService } from '@/core/application/services/ConfigurationService';
 

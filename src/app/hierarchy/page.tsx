@@ -7,7 +7,7 @@ import DIContainer from "@/core/infrastructure/di/DIContainer";
 import { MainLayout } from "@/components/layouts/MainLayout";
 import { HierarchyContent } from "@/views/hierarchy/HierarchyContent";
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export default async function HierarchyPage() {
   const assetRepo = DIContainer.getAssetRepository();

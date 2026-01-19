@@ -5,6 +5,8 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
+import { ChartSkeleton } from '@/presentation/components/common/LoadingSkeletons';
 import {
   PageHeader,
   StatsGrid,
@@ -13,12 +15,39 @@ import {
   Card,
   Badge,
 } from '@/components';
-import {
-  InterventionTrendsChart,
-  WorkOrderStatusChart,
-  TechnicianPerformanceChart,
-  AssetAvailabilityChart,
-} from '@/presentation/components/features/analytics/Charts';
+
+// Chargement dynamique des graphiques avec des squelettes de chargement
+const InterventionTrendsChart = dynamic(
+  () =>
+    import(
+      '@/presentation/components/features/analytics/Charts'
+    ).then((mod) => mod.InterventionTrendsChart),
+  { loading: () => <ChartSkeleton />, ssr: false }
+);
+
+const WorkOrderStatusChart = dynamic(
+  () =>
+    import(
+      '@/presentation/components/features/analytics/Charts'
+    ).then((mod) => mod.WorkOrderStatusChart),
+  { loading: () => <ChartSkeleton />, ssr: false }
+);
+
+const TechnicianPerformanceChart = dynamic(
+  () =>
+    import(
+      '@/presentation/components/features/analytics/Charts'
+    ).then((mod) => mod.TechnicianPerformanceChart),
+  { loading: () => <ChartSkeleton />, ssr: false }
+);
+
+const AssetAvailabilityChart = dynamic(
+  () =>
+    import(
+      '@/presentation/components/features/analytics/Charts'
+    ).then((mod) => mod.AssetAvailabilityChart),
+  { loading: () => <ChartSkeleton />, ssr: false }
+);
 import { ExportService } from '@/core/application/services/ExportService';
 import { LAYOUT_STYLES } from '@/styles/design-system';
 import type { DashboardKPIs, MaintenanceStats, InventoryStats, TechnicianPerformance, MonthlyTrend } from '@/core/application/services/AnalyticsService';
@@ -33,7 +62,13 @@ interface AnalyticsContentProps {
   statusDistribution: { status: string; count: number; percentage: number }[];
 }
 
-type Period = '7d' | '30d' | '90d' | '1y';
+
+const PERIODS: { value: Period; label: string }[] = [
+  { value: '7d', label: '7 jours' },
+  { value: '30d', label: '30 jours' },
+  { value: '90d', label: '90 jours' },
+  { value: '1y', label: '1 an' },
+];
 
 export function AnalyticsContent({
   kpis,
@@ -46,50 +81,30 @@ export function AnalyticsContent({
 }: AnalyticsContentProps) {
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('30d');
 
-  const periods: { value: Period; label: string }[] = [
-    { value: '7d', label: '7 jours' },
-    { value: '30d', label: '30 jours' },
-    { value: '90d', label: '90 jours' },
-    { value: '1y', label: '1 an' },
-  ];
-
   // Export handlers
+
+  const getExportData = () => ({
+    title: 'Rapport Analytics',
+    subtitle: `Généré le ${new Date().toLocaleDateString('fr-FR')}`,
+    headers: ['Indicateur', 'Valeur'],
+    rows: [
+      ['Disponibilité moyenne', `${kpis.availability}%`],
+      ['MTTR moyen', `${kpis.mttr}h`],
+      ['Taux préventif', `${kpis.preventiveRate}%`],
+      ['Taux complétion', `${kpis.completionRate}%`],
+      ['Total interventions', maintenanceStats.totalInterventions],
+      ['Préventif', maintenanceStats.preventiveCount],
+      ['Correctif', maintenanceStats.correctiveCount],
+      ['Valeur stock', `${inventoryStats.totalValue.toLocaleString('fr-FR')} €`],
+    ],
+  });
   const handleExportPDF = () => {
-    const data = {
-      title: 'Rapport Analytics',
-      subtitle: `Généré le ${new Date().toLocaleDateString('fr-FR')}`,
-      headers: ['Indicateur', 'Valeur'],
-      rows: [
-        ['Disponibilité moyenne', `${kpis.availability}%`],
-        ['MTTR moyen', `${kpis.mttr}h`],
-        ['Taux préventif', `${kpis.preventiveRate}%`],
-        ['Taux complétion', `${kpis.completionRate}%`],
-        ['Total interventions', maintenanceStats.totalInterventions],
-        ['Préventif', maintenanceStats.preventiveCount],
-        ['Correctif', maintenanceStats.correctiveCount],
-        ['Valeur stock', `${inventoryStats.totalValue.toLocaleString('fr-FR')} €`],
-      ],
-    };
-    ExportService.exportReportToPDF(data, 'analytics');
+    
+    ExportService.exportReportToPDF(getExportData(), 'analytics');
   };
 
   const handleExportExcel = () => {
-    const data = {
-      title: 'Rapport Analytics',
-      subtitle: `Généré le ${new Date().toLocaleDateString('fr-FR')}`,
-      headers: ['Indicateur', 'Valeur'],
-      rows: [
-        ['Disponibilité moyenne', `${kpis.availability}%`],
-        ['MTTR moyen', `${kpis.mttr}h`],
-        ['Taux préventif', `${kpis.preventiveRate}%`],
-        ['Taux complétion', `${kpis.completionRate}%`],
-        ['Total interventions', maintenanceStats.totalInterventions],
-        ['Préventif', maintenanceStats.preventiveCount],
-        ['Correctif', maintenanceStats.correctiveCount],
-        ['Valeur stock', `${inventoryStats.totalValue.toLocaleString('fr-FR')} €`],
-      ],
-    };
-    ExportService.exportReportToExcel(data, 'analytics');
+    ExportService.exportReportToExcel(getExportData(), 'analytics');
   };
 
   return (
@@ -101,7 +116,7 @@ export function AnalyticsContent({
         icon="📊"
         actions={
           <div className={LAYOUT_STYLES.flexRow}>
-            {periods.map(period => (
+            {PERIODS.map(period => (
               <Button
                 key={period.value}
                 variant={selectedPeriod === period.value ? 'primary' : 'ghost'}

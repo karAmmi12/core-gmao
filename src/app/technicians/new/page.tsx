@@ -3,7 +3,7 @@
  */
 
 import { MainLayout, PageHeader, LinkButton } from '@/components';
-import { TechnicianForm } from '@/presentation/components/features/forms/TechnicianForm';
+import { TechnicianForm } from '@/presentation/components/features/technicians/TechnicianForm';
 import { ConfigurationService } from '@/core/application/services/ConfigurationService';
 
 export default async function NewTechnicianPage() {

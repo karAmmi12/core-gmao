@@ -1,4 +1,4 @@
-import { WorkOrder } from "../entities/WorkOrder";
+import { WorkOrder, OrderStatus, OrderPriority, MaintenanceType } from "../entities/WorkOrder";
 
 export interface PaginatedResult<T> {
     items: T[];
@@ -6,6 +6,23 @@ export interface PaginatedResult<T> {
     page: number;
     pageSize: number;
     totalPages: number;
+}
+
+export interface WorkOrderSummary {
+    id: string;
+    title: string;
+    status: OrderStatus;
+    priority: OrderPriority;
+    type: MaintenanceType;
+    assetId: string;
+    assetName: string;
+    assignedToId?: string;
+    assignedToName?: string;
+    createdAt: Date;
+    scheduledAt?: Date;
+    description?: string;
+    estimatedCost?: number;
+    requiresApproval: boolean;
 }
 
 export interface WorkOrderPartDetails {
@@ -18,7 +35,7 @@ export interface WorkOrderPartDetails {
     status: string;
     unitPrice: number;
     totalPrice: number;
-}
+}Summary
 
 export interface OrdersByTypeStats {
     CORRECTIVE: number;
@@ -35,6 +52,7 @@ export interface WorkOrderRepository {
     findByAssignedTo(technicianId: string): Promise<WorkOrder[]>;
     findById(id:string): Promise<WorkOrder | null>;
     update(order: WorkOrder): Promise<void>;
+    findPending(): Promise<WorkOrder[]>;
     countPending(): Promise<number>;
     countByType?(): Promise<OrdersByTypeStats>;
     addPart(workOrderId: string, partId: string, quantity: number, unitPrice: number): Promise<void>;

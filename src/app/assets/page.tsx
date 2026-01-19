@@ -6,7 +6,7 @@ import { AssetService } from "@/core/application/services/AssetService";
 import { MainLayout } from "@/components";
 import { AssetsContent } from "@/views/assets/AssetsContent";
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export default async function AssetsPage() {
   const assetService = new AssetService();

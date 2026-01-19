@@ -3,7 +3,8 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/shared/lib/auth';
-import { prisma } from '@/lib/prisma';
+import DIContainer from '@/core/infrastructure/di/DIContainer';
+import { GetPendingApprovalsUseCase } from '@/core/application/use-cases/GetPendingApprovalsUseCase';
 import PendingApprovalsView from '@/presentation/views/approvals/PendingApprovalsView';
 import type { UserRole } from '@/core/domain/entities/User';
 import { MainLayout } from '@/presentation/components';
@@ -21,18 +22,10 @@ export default async function ApprovalsPage() {
     redirect('/');
   }
 
-  // Récupérer les interventions en attente d'approbation
-  const pendingWorkOrders = await prisma.workOrder.findMany({
-    where: { status: 'PENDING' },
-    include: {
-      asset: { select: { id: true, name: true } },
-      assignedTo: { select: { id: true, name: true } },
-    },
-    orderBy: [
-      { priority: 'desc' }, // Urgences en premier
-      { createdAt: 'asc' }, // Plus anciennes en premier
-    ],
-  });
+  // Récupérer les interventions en attente via le UseCase
+  const workOrderRepo = DIContainer.getWorkOrderRepository();
+  const getPendingApprovalsUseCase = new GetPendingApprovalsUseCase(workOrderRepo);
+  const pendingWorkOrders = await getPendingApprovalsUseCase.execute();
 
   // Transformer pour le composant
   const workOrders = pendingWorkOrders.map((wo) => ({
@@ -43,9 +36,9 @@ export default async function ApprovalsPage() {
     priority: wo.priority as any,
     type: wo.type as any,
     assetId: wo.assetId,
-    assetName: wo.asset.name,
-    assignedToId: wo.assignedToId || undefined,
-    assignedToName: wo.assignedTo?.name || undefined,
+    assetName: wo.assetName, 
+    assignedToId: wo.assignedToId,
+    assignedToName: wo.assignedToName,
     createdAt: wo.createdAt.toISOString(),
     scheduledAt: wo.scheduledAt?.toISOString(),
     estimatedCost: wo.estimatedCost || undefined,

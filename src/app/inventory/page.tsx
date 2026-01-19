@@ -7,7 +7,7 @@ import { ConfigurationService } from '@/core/application/services/ConfigurationS
 import { MainLayout } from '@/components/layouts/MainLayout';
 import { InventoryContent } from '@/views/inventory/InventoryContent';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export default async function InventoryPage() {
   const service = new InventoryService();

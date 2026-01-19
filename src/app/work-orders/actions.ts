@@ -11,6 +11,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/shared/lib/auth';
 import { PermissionService, type WorkOrderContext } from '@/core/domain/authorization/PermissionService';
 import type { UserRole } from '@/core/domain/entities/User';
+import { ApproveWorkOrderUseCase } from '@/core/application/use-cases/ApproveWorkOrderUseCase';
+import { RejectWorkOrderUseCase } from '@/core/application/use-cases/RejectWorkOrderUseCase';
 
 // =============================================================================
 // UPDATE WORK ORDER - Modifier une intervention
@@ -266,16 +268,9 @@ export async function approveWorkOrderAction(
       };
     }
 
-    // Approuver l'intervention (mise à jour directe via Prisma pour l'instant)
-    const prisma = (await import('@/lib/prisma')).prisma;
-    await prisma.workOrder.update({
-      where: { id: workOrderId },
-      data: {
-        status: 'APPROVED',
-        approvedById: session.user.id,
-        approvedAt: new Date(),
-      },
-    });
+    // Approuver l'intervention via le UseCase (Clean Architecture)
+    const approveWorkOrderUseCase = new ApproveWorkOrderUseCase(workOrderRepo);
+    await approveWorkOrderUseCase.execute(workOrderId, session.user.id);
 
     revalidatePath('/work-orders');
     return { 
@@ -341,18 +336,9 @@ export async function rejectWorkOrderAction(
         error: 'Seules les interventions en attente peuvent être rejetées' 
       };
     }
-
-    // Rejeter l'intervention (mise à jour directe via Prisma pour l'instant)
-    const prisma = (await import('@/lib/prisma')).prisma;
-    await prisma.workOrder.update({
-      where: { id: workOrderId },
-      data: {
-        status: 'REJECTED',
-        approvedById: session.user.id,
-        approvedAt: new Date(),
-        rejectionReason: rejectionReason.trim(),
-      },
-    });
+    // Rejeter l'intervention via le UseCase (Clean Architecture)
+    const rejectWorkOrderUseCase = new RejectWorkOrderUseCase(workOrderRepo);
+    await rejectWorkOrderUseCase.execute(workOrderId, session.user.id, rejectionReason.trim());
 
     revalidatePath('/work-orders');
     return { 

@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import DIContainer from '@/core/infrastructure/di/DIContainer';
 import { AssetService } from '@/core/application/services/AssetService';
 import { TechnicianService } from '@/core/application/services/TechnicianService';
-import { MaintenanceScheduleForm } from '@/components/features/forms/MaintenanceScheduleForm';
+import { MaintenanceScheduleForm } from '@/presentation/components/features/maintenance/MaintenanceScheduleForm';
 import { updateMaintenanceScheduleAction } from '@/app/actions';
 import { MainLayout } from '@/components';
 import { TableSkeleton } from '@/components/common/LoadingSkeletons';

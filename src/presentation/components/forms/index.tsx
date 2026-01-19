@@ -10,6 +10,8 @@ import { cn } from '@/styles/design-system';
 import { Button, Input, Textarea, Select, Card, Spinner } from '../ui';
 import { Alert } from '../composite';
 
+export { DataForm } from './DataForm';
+
 // =============================================================================
 // FORM CONTAINER
 // =============================================================================
@@ -215,16 +217,19 @@ export function useForm<T = any>(
     });
   };
 
+  // Utiliser l'état initial si state est null
+  const safeState = state ?? initialState;
+
   return {
-    state,
+    state: safeState,
     formAction,
     isPending,
     handleSubmit,
-    isSuccess: state.success,
-    isError: !state.success && !!state.message,
-    errors: state.errors || {},
-    message: state.message,
-    data: state.data,
+    isSuccess: safeState.success,
+    isError: !safeState.success && !!safeState.message,
+    errors: safeState.errors || {},
+    message: safeState.message,
+    data: safeState.data,
   };
 }
 
@@ -256,30 +261,33 @@ export function ServerActionForm<T = any>({
 }: ServerActionFormProps<T>) {
   const [state, formAction] = useActionState(action, initialState);
 
+  // Utiliser l'état initial si state est null
+  const safeState = state ?? initialState;
+
   // Call onSuccess callback if needed
-  if (state.success && state.data && onSuccess) {
-    onSuccess(state.data);
+  if (safeState.success && safeState.data && onSuccess) {
+    onSuccess(safeState.data);
   }
 
   return (
     <form action={formAction} className={cn('space-y-6', className)}>
-      {state.success && successMessage && (
+      {safeState.success && successMessage && (
         <Alert variant="success">
           {successMessage}
         </Alert>
       )}
       
-      {!state.success && state.message && (
+      {!safeState.success && safeState.message && (
         <Alert variant="danger">
-          {state.message}
+          {safeState.message}
         </Alert>
       )}
 
       {children({
         isPending: false, // Server actions don't expose pending state directly
-        errors: state.errors || {},
-        message: state.message,
-        isSuccess: state.success,
+        errors: safeState.errors || {},
+        message: safeState.message,
+        isSuccess: safeState.success,
       })}
     </form>
   );
