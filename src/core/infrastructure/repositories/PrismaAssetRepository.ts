@@ -50,12 +50,41 @@ export class PrismaAssetRepository implements AssetRepository {
         raw.status as AssetStatus,
         raw.createdAt,
         raw.parentId ?? undefined,
-        raw.assetType as AssetType | undefined,
+        raw.assetType as AssetType,
         raw.location ?? undefined,
         raw.manufacturer ?? undefined,
         raw.modelNumber ?? undefined
       )
     );
+  }
+
+  async findMany(filters: any = {}, limit: number = 100): Promise<Asset[]> {
+    const rawAssets = await prisma.asset.findMany({
+      where: filters,
+      orderBy: { name: 'asc' },
+      take: limit,
+    });
+    
+    return rawAssets.map((raw) => 
+      Asset.restore(
+        raw.id,
+        raw.name,
+        raw.serialNumber,
+        raw.status as AssetStatus,
+        raw.createdAt,
+        raw.parentId ?? undefined,
+        raw.assetType as AssetType,
+        raw.location ?? undefined,
+        raw.manufacturer ?? undefined,
+        raw.modelNumber ?? undefined
+      )
+    );
+  }
+
+  async count(filters: any = {}): Promise<number> {
+    return await prisma.asset.count({
+      where: filters,
+    });
   }
 
   async findById(id: string): Promise<Asset | null> {

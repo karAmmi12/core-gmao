@@ -47,6 +47,8 @@ export interface OrdersByTypeStats {
 export interface WorkOrderRepository {
     save(order: WorkOrder): Promise<void>;
     findAll(): Promise<WorkOrder[]>;
+    findMany(filters: any, limit?: number): Promise<WorkOrder[]>;
+    count(filters: any): Promise<number>; // Nouvelle méthode pour compter
     findAllPaginated(page: number, pageSize: number): Promise<PaginatedResult<WorkOrder>>;
     findByAssetId(assetId: string): Promise<WorkOrder[]>;
     findByAssignedTo(technicianId: string): Promise<WorkOrder[]>;

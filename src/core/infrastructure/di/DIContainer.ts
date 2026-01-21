@@ -24,6 +24,10 @@ import { InventoryService } from "@/core/application/services/InventoryService";
 import { MaintenanceScheduleService } from "@/core/application/services/MaintenanceScheduleService";
 import { AnalyticsService } from "@/core/application/services/AnalyticsService";
 import { prisma } from "@/shared/lib/prisma";
+import { AIService } from "@/core/domain/services/AIService";
+import { AIToolService } from "@/core/domain/services/AIToolService";
+import { GroqAIService } from "@/core/infrastructure/ai/GroqAIService";
+import { GMAOToolService } from "@/core/infrastructure/ai/GMAOToolService";
 
 // Container simple (sans bibliothèque externe)
 class DIContainer {
@@ -41,6 +45,8 @@ class DIContainer {
   private static inventoryService: InventoryService | null = null;
   private static maintenanceScheduleService: MaintenanceScheduleService | null = null;
   private static analyticsService: AnalyticsService | null = null;
+  private static aiService: AIService | null = null;
+  private static aiToolService: AIToolService | null = null;
 
   static getAssetRepository(): AssetRepository {
     if (!this.assetRepo) {
@@ -207,6 +213,29 @@ class DIContainer {
     this.inventoryService = null;
     this.maintenanceScheduleService = null;
     this.analyticsService = null;
+    this.aiService = null;
+    this.aiToolService = null;
+  }
+
+  static getAIToolService(): AIToolService {
+    if (!this.aiToolService) {
+      this.aiToolService = new GMAOToolService(
+        this.getWorkOrderRepository(),
+        this.getAssetRepository()
+      );
+    }
+    return this.aiToolService;
+  }
+
+  static getAIService(): AIService {
+    if (!this.aiService) {
+      const apiKey = process.env.GROQ_API_KEY;
+      if (!apiKey) {
+        throw new Error('GROQ_API_KEY non configurée dans les variables d\'environnement');
+      }
+      this.aiService = new GroqAIService(apiKey, this.getAIToolService());
+    }
+    return this.aiService;
   }
 }
 

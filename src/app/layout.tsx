@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/presentation/providers/AuthProvider";
+import { ChatProvider } from "@/presentation/providers/ChatProvider";
+import { ChatDrawerWrapper } from "@/presentation/components/features/chat/ChatDrawerWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +33,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <ChatProvider>
+            {children}
+            <ChatDrawerWrapper />
+          </ChatProvider>
+        </AuthProvider>
       </body>
     </html>
   );

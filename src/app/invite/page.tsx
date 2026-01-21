@@ -19,7 +19,7 @@ export default function InvitePage() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-primary-50 to-primary-100 p-4">
         <Card className="w-full max-w-md p-6 text-center">
           <div className="text-danger-500 text-5xl mb-4">⚠️</div>
           <h2 className="text-xl font-bold text-neutral-900 mb-2">Lien invalide</h2>
@@ -37,7 +37,7 @@ export default function InvitePage() {
 
   if (state?.success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-primary-50 to-primary-100 p-4">
         <Card className="w-full max-w-md p-6 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-success-100 rounded-full mb-4">
             <CheckCircle className="w-8 h-8 text-success-600" />
@@ -56,7 +56,7 @@ export default function InvitePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-primary-50 to-primary-100 p-4">
       <div className="w-full max-w-md">
         {/* Logo et titre */}
         <div className="text-center mb-8">

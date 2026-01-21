@@ -26,10 +26,13 @@ import {
   ChevronDown,
   Shield,
   ClipboardList,
-  ShieldCheck
+  ShieldCheck,
+  MessageSquare,
+  Bot
 } from 'lucide-react';
 import { cn } from '@/styles/design-system';
 import { Logo } from '../ui/Logo';
+import { useChat } from '@/presentation/providers/ChatProvider';
 import type { UserRole } from '@/core/domain/entities/User';
 
 // =============================================================================
@@ -166,6 +169,32 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
 }
 
 // =============================================================================
+// CHAT BUTTON
+// =============================================================================
+
+function ChatButton() {
+  const { toggleChat } = useChat();
+  const { data: session } = useSession();
+  const userRole = session?.user?.role as UserRole | undefined;
+
+  // Vérifier si l'utilisateur a accès au chat
+  const hasAccess = userRole && ['ADMIN', 'MANAGER', 'TECHNICIAN'].includes(userRole);
+
+  if (!hasAccess) return null;
+
+  return (
+    <button
+      onClick={toggleChat}
+      className="relative p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors group"
+      title="Assistant IA"
+    >
+      <Bot className="w-5 h-5" />
+      <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+    </button>
+  );
+}
+
+// =============================================================================
 // HEADER
 // =============================================================================
 
@@ -214,6 +243,9 @@ function Header({ onMenuClick }: HeaderProps) {
       <div className="hidden lg:block flex-1" />
       
       {/* Actions */}
+        
+        {/* Chat IA Button */}
+        <ChatButton />
       <div className="flex items-center gap-2 lg:gap-4">
 
         

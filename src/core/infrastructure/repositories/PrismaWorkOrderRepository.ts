@@ -67,6 +67,48 @@ export class PrismaWorkOrderRepository implements WorkOrderRepository {
     );
   }
 
+  async findMany(filters: any = {}, limit: number = 100): Promise<WorkOrder[]> {
+    const rawOrders = await prisma.workOrder.findMany({
+      where: filters,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+    
+    return rawOrders.map(o => 
+      WorkOrder.restore(
+        o.id,
+        o.title,
+        o.description ?? undefined,
+        o.status as OrderStatus,
+        o.priority as OrderPriority,
+        (o.type || 'CORRECTIVE') as MaintenanceType,
+        o.assetId,
+        undefined,
+        o.createdAt,
+        o.scheduledAt ?? undefined,
+        o.startedAt ?? undefined,
+        o.completedAt ?? undefined,
+        o.estimatedDuration ?? undefined,
+        o.actualDuration ?? undefined,
+        o.assignedToId ?? undefined,
+        o.laborCost,
+        o.materialCost,
+        o.totalCost,
+        o.estimatedCost ?? undefined,
+        o.requiresApproval,
+        o.approvedById ?? undefined,
+        o.approvedAt ?? undefined,
+        o.rejectionReason ?? undefined
+      )
+    );
+  }
+
+  async count(filters: any = {}): Promise<number> {
+    return await prisma.workOrder.count({
+      where: filters,
+    });
+  }
+
   async findAllPaginated(page: number, pageSize: number): Promise<PaginatedResult<WorkOrder>> {
     const skip = (page - 1) * pageSize;
     
