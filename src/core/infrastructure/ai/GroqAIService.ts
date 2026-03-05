@@ -109,21 +109,28 @@ export class GroqAIService implements AIService {
     } catch (error: any) {
       console.error('Groq API error:', error);
       
+      // Extraire le vrai code d'erreur si disponible
+      const errorMessage = error.message || '';
+      const statusCode = error.status || error.statusCode;
+      
       // Gérer les erreurs spécifiques avec des messages conviviaux
-      if (error.message?.includes('rate_limit_exceeded') || error.message?.includes('429')) {
+      if (statusCode === 429 || error.code === 'rate_limit_exceeded') {
         throw new Error('⏰ Le service IA a atteint sa limite quotidienne. Veuillez réessayer dans quelques minutes.');
       }
       
-      if (error.message?.includes('401') || error.message?.includes('invalid_api_key')) {
+      if (statusCode === 401 || error.code === 'invalid_api_key') {
         throw new Error('🔑 Erreur de configuration de l\'API. Veuillez contacter l\'administrateur.');
       }
       
-      if (error.message?.includes('503') || error.message?.includes('Service Unavailable')) {
+      if (statusCode === 503 || errorMessage.includes('Service Unavailable')) {
         throw new Error('⚠️ Le service IA est temporairement indisponible. Veuillez réessayer dans quelques instants.');
       }
       
-      // Erreur générique conviviale
-      throw new Error('❌ Une erreur est survenue lors de la communication avec l\'assistant IA. Veuillez réessayer.');
+      // Afficher l'erreur réelle pour le debug (visible dans la console)
+      console.error('Erreur détaillée:', { message: errorMessage, status: statusCode, code: error.code });
+      
+      // Message générique avec un indice
+      throw new Error(`❌ Erreur IA: ${errorMessage.substring(0, 100)}`);
     }
   }
 

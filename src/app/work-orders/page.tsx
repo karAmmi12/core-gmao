@@ -7,7 +7,7 @@ import { authOptions } from '@/shared/lib/auth';
 import { redirect } from 'next/navigation';
 
 interface PageProps {
-  searchParams: { page?: string };
+  searchParams: Promise<{ page?: string }>;
 }
 
 export default async function WorkOrdersPage({ searchParams }: PageProps) {
@@ -19,7 +19,8 @@ export default async function WorkOrdersPage({ searchParams }: PageProps) {
 
   const userRole = session.user.role as string;
   const technicianId = session.user.technicianId;
-  const currentPage = Number(searchParams.page) || 1;
+  const params = await searchParams;
+  const currentPage = Number(params.page) || 1;
   const pageSize = 20;
 
   // Fetch work orders

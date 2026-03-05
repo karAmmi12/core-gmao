@@ -367,11 +367,13 @@ export async function completeWorkOrderByTechnicianAction(
       return { success: false, error: 'Non authentifié' };
     }
 
-    // Seuls les techniciens peuvent terminer une intervention
-    if (session.user.role !== 'TECHNICIAN') {
+    const role = session.user.role;
+    const isAllowedRole = role === 'TECHNICIAN' || role === 'MANAGER' || role === 'ADMIN';
+
+    if (!isAllowedRole) {
       return { 
         success: false, 
-        error: 'Seul un technicien peut terminer une intervention' 
+        error: 'Vous n\'avez pas les droits pour terminer une intervention' 
       };
     }
 
@@ -385,25 +387,43 @@ export async function completeWorkOrderByTechnicianAction(
       };
     }
 
-    // Vérifier que le technicien a un technicianId
-    if (!session.user.technicianId) {
-      return { 
-        success: false, 
-        error: 'Profil technicien non trouvé' 
-      };
+    // Récupérer le WorkOrder pour déterminer le technicien assigné
+    const workOrderRepo = DIContainer.getWorkOrderRepository();
+    const workOrder = await workOrderRepo.findById(workOrderId);
+    if (!workOrder) {
+      return { success: false, error: 'Ordre de travail introuvable' };
+    }
+
+    // Pour un technicien : vérifier qu'il est bien assigné
+    // Pour manager/admin : utiliser le technicien assigné à l'OT
+    let resolvedTechnicianId: string;
+
+    if (role === 'TECHNICIAN') {
+      if (!session.user.technicianId) {
+        return { success: false, error: 'Profil technicien non trouvé' };
+      }
+      resolvedTechnicianId = session.user.technicianId;
+    } else {
+      // Manager/Admin : utiliser l'assignedToId de l'OT
+      if (!workOrder.assignedToId) {
+        return { 
+          success: false, 
+          error: 'Aucun technicien n\'est assigné à cette intervention' 
+        };
+      }
+      resolvedTechnicianId = workOrder.assignedToId;
     }
 
     // Exécuter le use case
     const { CompleteTechnicianWorkOrderUseCase } = await import(
       '@/core/application/use-cases/CompleteTechnicianWorkOrderUseCase'
     );
-    const workOrderRepo = DIContainer.getWorkOrderRepository();
     const workOrderPartRepo = DIContainer.getWorkOrderPartRepository();
     const useCase = new CompleteTechnicianWorkOrderUseCase(workOrderRepo, workOrderPartRepo);
 
     await useCase.execute({
       workOrderId,
-      technicianId: session.user.technicianId,
+      technicianId: resolvedTechnicianId,
       actualDuration,
       notes,
     });

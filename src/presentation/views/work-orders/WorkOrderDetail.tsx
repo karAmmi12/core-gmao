@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { 
   CheckCircle, Calendar, Clock, User, Package, DollarSign,
   ArrowLeft, PlayCircle, XCircle, Edit, AlertTriangle, Pencil, Ban, Pause,
-  ShieldCheck, ShieldX, FileCheck
+  ShieldCheck, ShieldX, FileCheck, FileText, Printer
 } from 'lucide-react';
 import { WorkOrderDTO, WorkOrderPartDTO } from '@/core/application/dto/WorkOrderDTO';
 import { 
@@ -34,6 +34,7 @@ import {
 import { LAYOUT_STYLES } from '@/styles/design-system';
 import { useWorkOrderPermissions } from '@/presentation/hooks/usePermissions';
 import type { UserRole } from '@/core/domain/entities/User';
+import { DocumentUploader } from '@/presentation/components/features/DocumentUploader';
 
 // ============================================================================
 // Types
@@ -81,6 +82,7 @@ function ActionButtons({
   onCancel,
   onApprove,
   onReject,
+  onPrint,
   isStarting,
   isCancelling,
   isApproving,
@@ -92,6 +94,7 @@ function ActionButtons({
   onCancel: () => void;
   onApprove: () => void;
   onReject: () => void;
+  onPrint: () => void;
   isStarting: boolean;
   isCancelling: boolean;
   isApproving: boolean;
@@ -105,6 +108,15 @@ function ActionButtons({
 
   return (
     <div className="flex flex-wrap gap-2">
+      {/* Bouton Imprimer - toujours visible */}
+      <Button 
+        variant="outline" 
+        size="sm" 
+        icon={<Printer size={16} />}
+        onClick={onPrint}
+      >
+        Imprimer
+      </Button>
       {/* Boutons d'approbation (uniquement pour PENDING et si l'utilisateur peut approuver) */}
       {isPending && canApprove && (
         <>
@@ -299,6 +311,16 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
   const { data: session } = useSession();
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showScanTab, setShowScanTab] = useState(true); // Scanner ouvert par défaut
+  const [scannedReportData, setScannedReportData] = useState<any>(null);
+  const [isAutoCompleting, setIsAutoCompleting] = useState(false);
+  
+  // Handle print
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') {
+      window.print();
+    }
+  };
   
   // Permissions
   const userRole = (session?.user?.role as UserRole) || 'TECHNICIAN';
@@ -355,7 +377,10 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
   const isAssignedTechnician = technicianId && workOrder.assignedToId === technicianId;
   
   // Technicien peut terminer si : intervention EN COURS + il est assigné
-  const canTechnicianComplete = isTechnician && isAssignedTechnician && workOrder.status === 'IN_PROGRESS';
+  // Admin/Manager peuvent aussi utiliser le scan pour déclencher la complétion
+  const canTechnicianComplete = (
+    (isTechnician && isAssignedTechnician) || isManager
+  ) && workOrder.status === 'IN_PROGRESS';
   
   // Manager peut valider si : intervention TERMINÉE + coûts pas encore enregistrés
   // On vérifie que laborCost et materialCost sont à 0 (valeurs par défaut)
@@ -424,6 +449,37 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
     }
   };
 
+  // Auto-complétion directe depuis les données du compte-rendu scanné
+  const handleAutoCompleteFromReport = async () => {
+    if (!scannedReportData) return;
+
+    setIsAutoCompleting(true);
+    setTechCompleteState(null);
+
+    // Construire les notes à partir de toutes les données extraites
+    const notesParts: string[] = [];
+    if (scannedReportData.description) notesParts.push(scannedReportData.description);
+    if (scannedReportData.actionsPerformed) notesParts.push(`Actions: ${scannedReportData.actionsPerformed}`);
+    if (scannedReportData.diagnosis) notesParts.push(`Diagnostic: ${scannedReportData.diagnosis}`);
+    if (scannedReportData.partsUsed?.length > 0) {
+      const partsStr = scannedReportData.partsUsed
+        .map((p: any) => `${p.name} (x${p.quantity})`)
+        .join(', ');
+      notesParts.push(`Pièces utilisées: ${partsStr}`);
+    }
+
+    const formData = new FormData();
+    formData.set('actualDuration', String(scannedReportData.actualDuration || 60));
+    formData.set('notes', notesParts.join('\n\n'));
+
+    const result = await completeWorkOrderByTechnicianAction(workOrder.id, formData);
+    setTechCompleteState(result);
+    setIsAutoCompleting(false);
+    if (result?.success) {
+      router.refresh();
+    }
+  };
+
   // Handle manager validate (new workflow)
   const handleManagerValidate = async (formData: FormData) => {
     setIsManagerValidating(true);
@@ -455,6 +511,7 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
               onCancel={() => setShowCancelModal(true)}
               onApprove={handleApprove}
               onReject={() => setShowRejectModal(true)}
+              onPrint={handlePrint}
               isStarting={isStarting}
               isCancelling={isCancelling}
               isApproving={isApproving}
@@ -487,24 +544,26 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
 
         {/* Pending Approval Notice */}
         {isPending && workOrder.requiresApproval && (
-          <Alert variant="warning">
-            <div className="flex items-center gap-2">
-              <Clock size={18} />
-              <div>
-                <p className="font-medium">En attente d'approbation</p>
-                <p className="text-sm">Cette intervention nécessite une validation avant de pouvoir être démarrée.</p>
-                {workOrder.estimatedCost && (
-                  <p className="text-sm mt-1">
-                    Coût estimé : <strong>{workOrder.estimatedCost.toFixed(2)} €</strong>
-                  </p>
-                )}
+          <div className="print:hidden">
+            <Alert variant="warning">
+              <div className="flex items-center gap-2">
+                <Clock size={18} />
+                <div>
+                  <p className="font-medium">En attente d'approbation</p>
+                  <p className="text-sm">Cette intervention nécessite une validation avant de pouvoir être démarrée.</p>
+                  {workOrder.estimatedCost && (
+                    <p className="text-sm mt-1">
+                      Coût estimé : <strong>{workOrder.estimatedCost.toFixed(2)} €</strong>
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          </Alert>
+            </Alert>
+          </div>
         )}
 
         {/* Status & Priority & Type */}
-        <div className={LAYOUT_STYLES.flexRow}>
+        <div className={`${LAYOUT_STYLES.flexRow} print:hidden`}>
           <Badge variant={statusConfig.variant === 'info' ? 'primary' : statusConfig.variant} size="lg">
             <StatusIcon size={16} className="mr-1.5" />
             {statusConfig.label}
@@ -525,54 +584,80 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
 
         {/* Cancelled Notice */}
         {isCancelled && (
-          <Alert variant="warning">
-            <div className="flex items-center gap-2">
-              <XCircle size={18} />
-              Cette intervention a été annulée
-            </div>
-          </Alert>
+          <div className="print:hidden">
+            <Alert variant="warning">
+              <div className="flex items-center gap-2">
+                <XCircle size={18} />
+                Cette intervention a été annulée
+              </div>
+            </Alert>
+          </div>
         )}
 
         {/* Rejected Notice */}
         {isRejected && (
-          <Alert variant="danger">
-            <div className="flex items-start gap-2">
-              <ShieldX size={18} className="mt-0.5" />
-              <div>
-                <p className="font-medium">Cette intervention a été rejetée</p>
-                {workOrder.rejectionReason && (
-                  <p className="text-sm mt-1">Raison : {workOrder.rejectionReason}</p>
-                )}
-                {workOrder.approvedByName && workOrder.approvedAt && (
-                  <p className="text-sm text-neutral-600 mt-1">
-                    Par {workOrder.approvedByName} le {new Date(workOrder.approvedAt).toLocaleString('fr-FR')}
-                  </p>
-                )}
+          <div className="print:hidden">
+            <Alert variant="danger">
+              <div className="flex items-start gap-2">
+                <ShieldX size={18} className="mt-0.5" />
+                <div>
+                  <p className="font-medium">Cette intervention a été rejetée</p>
+                  {workOrder.rejectionReason && (
+                    <p className="text-sm mt-1">Raison : {workOrder.rejectionReason}</p>
+                  )}
+                  {workOrder.approvedByName && workOrder.approvedAt && (
+                    <p className="text-sm text-neutral-600 mt-1">
+                      Par {workOrder.approvedByName} le {new Date(workOrder.approvedAt).toLocaleString('fr-FR')}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          </Alert>
+            </Alert>
+          </div>
         )}
 
         {/* Approval Info (when approved) */}
         {workOrder.status === 'APPROVED' && workOrder.approvedByName && (
-          <Alert variant="success">
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={18} />
-              <div>
-                <p className="font-medium">Intervention approuvée</p>
-                <p className="text-sm">
-                  Par {workOrder.approvedByName} le {workOrder.approvedAt && new Date(workOrder.approvedAt).toLocaleString('fr-FR')}
-                </p>
+          <div className="print:hidden">
+            <Alert variant="success">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={18} />
+                <div>
+                  <p className="font-medium">Intervention approuvée</p>
+                  <p className="text-sm">
+                    Par {workOrder.approvedByName} le {workOrder.approvedAt && new Date(workOrder.approvedAt).toLocaleString('fr-FR')}
+                  </p>
+                </div>
               </div>
-            </div>
-          </Alert>
+            </Alert>
+          </div>
         )}
 
-        {/* Main Info */}
-        <Card>
-          <h3 className="text-lg font-semibold mb-4">Informations générales</h3>
+        {/* Version ultra-compacte pour impression uniquement */}
+        <div className="hidden print:block border border-gray-400 p-2 mb-2">
+          <div className="text-[9pt] space-y-0.5">
+            <div className="grid grid-cols-2 gap-x-2">
+              <div><strong>N° OT:</strong> #{workOrder.id.slice(0, 8)}</div>
+              <div><strong>Priorité:</strong> {priorityConfig.label}</div>
+            </div>
+            <div><strong>Équipement:</strong> {assetName}</div>
+            {technicianName && <div><strong>Technicien:</strong> {technicianName}</div>}
+            {workOrder.scheduledAt && (
+              <div><strong>Prévu le:</strong> {new Date(workOrder.scheduledAt).toLocaleDateString('fr-FR')}</div>
+            )}
+            {workOrder.description && (
+              <div className="mt-1 pt-1 border-t border-gray-300">
+                <strong>Description:</strong> {workOrder.description.length > 150 ? workOrder.description.slice(0, 150) + '...' : workOrder.description}
+              </div>
+            )}
+          </div>
+        </div>
 
-          <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Main Info */}
+        <Card className="print:hidden">
+          <h3 className="text-lg font-semibold mb-4 print:text-xs print:mb-1">Informations générales</h3>
+
+          <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-1 print:grid-cols-2">
             <div>
               <dt className="text-sm font-medium text-neutral-600 mb-1">Équipement</dt>
               <dd className="text-sm">
@@ -605,7 +690,7 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
             )}
 
             {workOrder.estimatedDuration && (
-              <div>
+              <div className="print:hidden">
                 <dt className="text-sm font-medium text-neutral-600 mb-1 flex items-center gap-1.5">
                   <Clock size={14} />
                   Durée estimée
@@ -614,7 +699,7 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
               </div>
             )}
 
-            <div>
+            <div className="print:hidden">
               <dt className="text-sm font-medium text-neutral-600 mb-1">Date de création</dt>
               <dd className="text-sm">
                 {new Date(workOrder.createdAt).toLocaleString('fr-FR')}
@@ -622,7 +707,7 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
             </div>
 
             {workOrder.startedAt && (
-              <div>
+              <div className="print:hidden">
                 <dt className="text-sm font-medium text-neutral-600 mb-1">Date de début</dt>
                 <dd className="text-sm">
                   {new Date(workOrder.startedAt).toLocaleString('fr-FR')}
@@ -631,7 +716,7 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
             )}
 
             {workOrder.completedAt && (
-              <div>
+              <div className="print:hidden">
                 <dt className="text-sm font-medium text-neutral-600 mb-1">Date de fin</dt>
                 <dd className="text-sm">
                   {new Date(workOrder.completedAt).toLocaleString('fr-FR')}
@@ -640,7 +725,7 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
             )}
 
             {workOrder.actualDuration && (
-              <div>
+              <div className="print:hidden">
                 <dt className="text-sm font-medium text-neutral-600 mb-1">Durée réelle</dt>
                 <dd className="text-sm">{workOrder.actualDuration} minutes</dd>
               </div>
@@ -648,16 +733,16 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
           </dl>
 
           {workOrder.description && (
-            <div className="mt-6 pt-6 border-t border-neutral-200">
-              <h4 className="text-sm font-medium text-neutral-600 mb-2">Description</h4>
-              <p className="text-sm text-neutral-700 whitespace-pre-wrap">{workOrder.description}</p>
+            <div className="mt-6 pt-6 border-t border-neutral-200 print:mt-2 print:pt-2">
+              <h4 className="text-sm font-medium text-neutral-600 mb-2 print:text-xs print:mb-1">Description</h4>
+              <p className="text-sm text-neutral-700 whitespace-pre-wrap print:text-xs">{ workOrder.description}</p>
             </div>
           )}
         </Card>
 
         {/* Parts Used */}
         {workOrder.parts && workOrder.parts.length > 0 && (
-          <Card>
+          <Card className="print:hidden">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Package size={20} className="text-neutral-600" />
               Pièces utilisées
@@ -684,8 +769,91 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
           </Card>
         )}
 
+        {/* Section pour remplissage manuel (visible uniquement à l'impression) */}
+        <div className="hidden print:block border-2 border-gray-800 p-3 mt-2">
+          <h2 className="text-sm font-bold mb-3 text-center border-b-2 border-black pb-1">
+            COMPTE-RENDU D'INTERVENTION
+          </h2>
+          
+          <div className="space-y-3">
+            {/* Travaux réalisés - zone principale */}
+            <div>
+              <div className="font-semibold text-xs mb-1">Travaux réalisés :</div>
+              <div className="border border-gray-800" style={{ minHeight: '70px', padding: '4px' }}>
+                <div style={{ lineHeight: '18px', minHeight: '18px' }}>&nbsp;</div>
+                <div style={{ lineHeight: '18px', minHeight: '18px' }}>&nbsp;</div>
+                <div style={{ lineHeight: '18px', minHeight: '18px' }}>&nbsp;</div>
+              </div>
+            </div>
+
+            {/* Observations et diagnostic */}
+            <div>
+              <div className="font-semibold text-xs mb-1">Observations / Diagnostic :</div>
+              <div className="border border-gray-800" style={{ minHeight: '50px', padding: '4px' }}>
+                <div style={{ lineHeight: '18px', minHeight: '18px' }}>&nbsp;</div>
+                <div style={{ lineHeight: '18px', minHeight: '18px' }}>&nbsp;</div>
+              </div>
+            </div>
+
+            {/* Pièces utilisées */}
+            <div>
+              <div className="font-semibold text-xs mb-1">Pièces utilisées :</div>
+              <table className="w-full border border-gray-800 text-xs" style={{ borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #333' }}>
+                    <th className="text-left p-1 border-r border-gray-800" style={{ width: '70%' }}>Désignation</th>
+                    <th className="text-left p-1" style={{ width: '30%' }}>Quantité</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #ddd' }}>
+                    <td className="p-1 border-r border-gray-800" style={{ height: '20px' }}>&nbsp;</td>
+                    <td className="p-1" style={{ height: '20px' }}>&nbsp;</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #ddd' }}>
+                    <td className="p-1 border-r border-gray-800" style={{ height: '20px' }}>&nbsp;</td>
+                    <td className="p-1" style={{ height: '20px' }}>&nbsp;</td>
+                  </tr>
+                  <tr>
+                    <td className="p-1 border-r border-gray-800" style={{ height: '20px' }}>&nbsp;</td>
+                    <td className="p-1" style={{ height: '20px' }}>&nbsp;</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Durée et date */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="font-semibold text-xs mb-1">Durée réelle :</div>
+                <div className="border border-gray-800 p-1 text-center" style={{ height: '25px' }}>
+                  <span className="text-xs">________ minutes</span>
+                </div>
+              </div>
+              <div>
+                <div className="font-semibold text-xs mb-1">Date de réalisation :</div>
+                <div className="border border-gray-800 p-1 text-center" style={{ height: '25px' }}>
+                  <span className="text-xs">___/___/______</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Signatures */}
+            <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t-2 border-gray-800">
+              <div>
+                <div className="font-semibold text-xs mb-1 text-center">Signature du technicien</div>
+                <div className="border border-gray-800" style={{ height: '40px' }}></div>
+              </div>
+              <div>
+                <div className="font-semibold text-xs mb-1 text-center">Signature du responsable</div>
+                <div className="border border-gray-800" style={{ height: '40px' }}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Costs */}
-        <Card>
+        <Card className="print:hidden">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <DollarSign size={20} className="text-neutral-600" />
             Coûts
@@ -711,7 +879,7 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
 
         {/* Complete Form (if in progress) */}
         {canTechnicianComplete && (
-          <Card>
+          <Card className="print:hidden">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <CheckCircle size={20} className="text-success-600" />
               Terminer l'intervention
@@ -720,67 +888,248 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
             <div className="mb-4">
               <Alert variant="primary">
                 <p className="text-sm">
-                  En tant que technicien, vous pouvez marquer cette intervention comme terminée. 
-                  Un manager devra ensuite valider et enregistrer les coûts.
+                  {isManager
+                    ? 'En tant que manager, vous pouvez terminer cette intervention (au nom du technicien assigné) en scannant ou saisissant le compte-rendu.'
+                    : 'Scannez votre compte-rendu pour remplir automatiquement, ou saisissez les informations manuellement. Un manager devra valider les coûts.'
+                  }
                 </p>
               </Alert>
             </div>
+            
+            {/* Onglets */}
+            <div className="mb-6 flex border-b border-gray-200">
+              <button
+                type="button"
+                onClick={() => setShowScanTab(false)}
+                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                  !showScanTab
+                    ? 'border-purple-600 text-purple-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Edit size={16} />
+                  Saisie manuelle
+                  {scannedReportData && (
+                    <span className="w-2 h-2 rounded-full bg-green-500" title="Données IA pré-remplies" />
+                  )}
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowScanTab(true)}
+                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                  showScanTab
+                    ? 'border-purple-600 text-purple-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <FileText size={16} />
+                  🤖 Scanner un compte-rendu
+                </div>
+              </button>
+            </div>
 
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              await handleTechnicianComplete(formData);
-            }} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Durée réelle (minutes) <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="number"
-                  name="actualDuration"
-                  min="1"
-                  placeholder="60"
-                  required
-                  disabled={isTechCompleting}
+            {showScanTab ? (
+              <div className="py-4">
+                <DocumentUploader
+                  type="work_report"
+                  workOrderId={workOrder.id}
+                  onProcessed={(result) => {
+                    console.log('[WorkOrderDetail] onProcessed:', result.type, result);
+                    // Accepter les données quel que soit le type retourné par l'API
+                    const data = result.extractedData;
+                    if (data) {
+                      setScannedReportData(data);
+                    }
+                  }}
                 />
-                <p className="mt-1 text-xs text-neutral-500">
-                  Temps réellement passé sur l'intervention
-                </p>
+
+                {scannedReportData && (
+                  <div className="mt-6 space-y-4">
+                    {/* Résumé des données extraites */}
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg space-y-3">
+                      <h4 className="text-sm font-semibold text-purple-900 flex items-center gap-2">
+                        <CheckCircle size={16} className="text-purple-600" />
+                        Données extraites du compte-rendu
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                        {scannedReportData.actualDuration && (
+                          <div className="flex gap-2">
+                            <span className="font-medium text-purple-800">⏱️ Durée:</span>
+                            <span className="text-purple-700">{scannedReportData.actualDuration} min</span>
+                          </div>
+                        )}
+                        {scannedReportData.diagnosis && (
+                          <div className="flex gap-2">
+                            <span className="font-medium text-purple-800">🔍 Diagnostic:</span>
+                            <span className="text-purple-700 truncate">{scannedReportData.diagnosis}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {scannedReportData.description && (
+                        <div className="text-sm">
+                          <span className="font-medium text-purple-800">📝 Description:</span>
+                          <p className="text-purple-700 mt-1 text-xs leading-relaxed">{scannedReportData.description}</p>
+                        </div>
+                      )}
+
+                      {scannedReportData.actionsPerformed && (
+                        <div className="text-sm">
+                          <span className="font-medium text-purple-800">✅ Actions:</span>
+                          <p className="text-purple-700 mt-1 text-xs leading-relaxed">{scannedReportData.actionsPerformed}</p>
+                        </div>
+                      )}
+
+                      {scannedReportData.partsUsed?.length > 0 && (
+                        <div className="text-sm">
+                          <span className="font-medium text-purple-800">🔧 Pièces:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {scannedReportData.partsUsed.map((part: any, i: number) => (
+                              <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">
+                                {part.name} ×{part.quantity}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex flex-col gap-3">
+                      {/* Bouton principal : Compléter directement */}
+                      <Button
+                        onClick={handleAutoCompleteFromReport}
+                        loading={isAutoCompleting}
+                        disabled={isAutoCompleting || isTechCompleting}
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                        variant="primary"
+                      >
+                        <CheckCircle size={18} className="mr-2" />
+                        {scannedReportData.actualDuration 
+                          ? `Terminer l'intervention (${scannedReportData.actualDuration} min)`
+                          : "Terminer l'intervention avec ces données"
+                        }
+                      </Button>
+
+                      {/* Bouton secondaire : Aller au formulaire pour modifier */}
+                      <button
+                        type="button"
+                        onClick={() => setShowScanTab(false)}
+                        className="text-sm text-gray-600 hover:text-purple-700 text-center underline"
+                      >
+                        ✏️ Modifier les données avant de soumettre
+                      </button>
+                    </div>
+
+                    {/* Feedback */}
+                    {techCompleteState?.error && (
+                      <Alert variant="danger">{techCompleteState.error}</Alert>
+                    )}
+                    {techCompleteState?.success && (
+                      <Alert variant="success">Intervention terminée avec succès !</Alert>
+                    )}
+
+                    {!scannedReportData.actualDuration && (
+                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-xs text-yellow-800">
+                          ⚠️ La durée n'a pas été détectée. La valeur par défaut de 60 min sera utilisée. 
+                          Vous pouvez modifier via le formulaire manuel.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
+            ) : (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                await handleTechnicianComplete(formData);
+              }} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    Durée réelle (minutes) <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    name="actualDuration"
+                    min="1"
+                    placeholder="60"
+                    defaultValue={scannedReportData?.actualDuration || ''}
+                    required
+                    disabled={isTechCompleting}
+                  />
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Temps réellement passé sur l'intervention
+                  </p>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Notes de completion
-                </label>
-                <Textarea
-                  name="notes"
-                  placeholder="Décrivez le travail effectué, les observations, etc..."
-                  rows={4}
-                  disabled={isTechCompleting}
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    Notes de completion
+                  </label>
+                  <Textarea
+                    name="notes"
+                    placeholder="Décrivez le travail effectué, les observations, etc..."
+                    rows={4}
+                    defaultValue={scannedReportData?.description || scannedReportData?.actionsPerformed || ''}
+                    disabled={isTechCompleting}
+                  />
+                </div>
 
-              {techCompleteState?.error && (
-                <Alert variant="danger">{techCompleteState.error}</Alert>
-              )}
-              
-              {techCompleteState?.success && (
-                <Alert variant="success">
-                  Intervention terminée avec succès
-                </Alert>
-              )}
+                {scannedReportData?.diagnosis && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm font-medium text-green-800 mb-1">
+                      📋 Diagnostic extrait par IA :
+                    </p>
+                    <p className="text-sm text-green-700">{scannedReportData.diagnosis}</p>
+                  </div>
+                )}
 
-              <Button type="submit" loading={isTechCompleting} className="w-full">
-                <CheckCircle size={18} className="mr-2" />
-                Terminer l'intervention
-              </Button>
-            </form>
+                {scannedReportData?.partsUsed && scannedReportData.partsUsed.length > 0 && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm font-medium text-yellow-800 mb-2">
+                      🔧 Pièces détectées par IA :
+                    </p>
+                    <ul className="text-sm text-yellow-700 list-disc list-inside space-y-1">
+                      {scannedReportData.partsUsed.map((part: any, i: number) => (
+                        <li key={i}>
+                          {part.name} (x{part.quantity})
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-yellow-600 mt-2">
+                      Pensez à enregistrer ces pièces dans la section "Pièces" si nécessaire
+                    </p>
+                  </div>
+                )}
+
+                {techCompleteState?.error && (
+                  <Alert variant="danger">{techCompleteState.error}</Alert>
+                )}
+                
+                {techCompleteState?.success && (
+                  <Alert variant="success">
+                    Intervention terminée avec succès
+                  </Alert>
+                )}
+
+                <Button type="submit" loading={isTechCompleting} className="w-full">
+                  <CheckCircle size={18} className="mr-2" />
+                  Terminer l'intervention
+                </Button>
+              </form>
+            )}
           </Card>
         )}
 
         {/* Manager Validation Form (if completed and requires approval) */}
         {canManagerValidate && (
-          <Card>
+          <Card className="print:hidden">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <ShieldCheck size={20} className="text-primary-600" />
               Validation de l'intervention
@@ -921,6 +1270,150 @@ export default function WorkOrderDetail({ workOrder, assetName, technicianName }
         onConfirm={handleReject}
         isPending={isRejecting}
       />
+
+      {/* Print Styles */}
+      <style jsx global>{`
+        @media print {
+          /* Cache les éléments non nécessaires à l'impression */
+          header, nav, footer,
+          button, 
+          .no-print,
+          [class*="PageHeader"],
+          [class*="Alert"],
+          form,
+          [class*="flex-wrap"] {
+            display: none !important;
+          }
+
+          /* Optimise la mise en page pour l'impression */
+          body {
+            background: white !important;
+            color: black !important;
+            font-size: 9pt !important;
+            line-height: 1.3 !important;
+          }
+
+          /* Affiche uniquement le contenu principal */
+          .max-w-5xl {
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+
+          /* Style des cartes pour l'impression - compactes mais lisibles */
+          [class*="Card"] {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+            page-break-inside: avoid;
+            margin-bottom: 0.3rem !important;
+            padding: 0.5rem !important;
+          }
+
+          /* Badges très compacts */
+          [class*="Badge"] {
+            display: none !important;
+          }
+
+          /* Titres compacts */
+          h1 {
+            font-size: 11pt !important;
+            margin: 0 0 0.3rem 0 !important;
+          }
+          
+          h2 {
+            font-size: 10pt !important;
+            margin: 0 0 0.3rem 0 !important;
+          }
+          
+          h3 {
+            font-size: 9pt !important;
+            margin: 0 0 0.3rem 0 !important;
+            page-break-after: avoid;
+            color: black !important;
+          }
+
+          /* Tableaux lisibles */
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+
+          th, td {
+            border: 1px solid #333 !important;
+            padding: 4px !important;
+            font-size: 9pt !important;
+          }
+
+          th {
+            font-weight: bold !important;
+            background: #f5f5f5 !important;
+          }
+
+          /* Listes de définition compactes */
+          dl {
+            margin: 0 !important;
+          }
+
+          dt {
+            font-weight: bold;
+            color: black !important;
+            font-size: 8pt !important;
+            margin-bottom: 0 !important;
+          }
+
+          dd {
+            font-size: 8pt !important;
+            margin: 0 0 0.2rem 0 !important;
+          }
+
+          /* Supprime espaces excessifs */
+          p, div {
+            margin: 0 !important;
+          }
+
+          /* En-tête d'impression avec marges réduites */
+          @page {
+            margin: 0.7cm;
+            size: A4 portrait;
+          }
+
+          /* En-tête compact */
+          body::before {
+            content: "ORDRE D'INTERVENTION";
+            display: block;
+            text-align: center;
+            font-size: 13pt;
+            font-weight: bold;
+            margin-bottom: 0.4rem;
+            padding-bottom: 0.2rem;
+            border-bottom: 2px solid #000;
+          }
+
+          /* Forcer tout sur une page */
+          html, body {
+            height: auto !important;
+            overflow: visible !important;
+          }
+
+          /* Réduire les icônes */
+          svg {
+            width: 10px !important;
+            height: 10px !important;
+          }
+
+          /* Links comme texte simple */
+          a {
+            color: black !important;
+            text-decoration: none !important;
+          }
+
+          /* Champs de formulaire manuel bien visibles */
+          .hidden.print\\:block {
+            display: block !important;
+            page-break-inside: avoid !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

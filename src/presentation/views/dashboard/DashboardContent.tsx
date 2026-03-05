@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   Box, CheckCircle, AlertCircle, Zap, Activity, Clock,
   Plus, ArrowRight, AlertTriangle, TrendingUp, Calendar,
-  Wrench, ShieldCheck, LineChart, Gauge
+  Wrench, ShieldCheck, LineChart, Gauge, Sparkles
 } from 'lucide-react';
 import { DashboardStatsDTO, AssetDTO } from '@/core/application/dto/AssetDTO';
 import { MaintenanceScheduleDTO } from '@/core/application/dto/MaintenanceScheduleDTO';
@@ -47,6 +47,14 @@ function QuickActions() {
         Actions rapides
       </h3>
       <div className="space-y-2">
+        <LinkButton 
+          href="/automation-demo" 
+          variant="primary" 
+          className="w-full justify-start"
+          icon={<Sparkles size={18} />}
+        >
+          🤖 Automatisation IA
+        </LinkButton>
         <LinkButton 
           href="/assets/new" 
           variant="outline" 

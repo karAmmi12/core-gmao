@@ -26,8 +26,14 @@ import { AnalyticsService } from "@/core/application/services/AnalyticsService";
 import { prisma } from "@/shared/lib/prisma";
 import { AIService } from "@/core/domain/services/AIService";
 import { AIToolService } from "@/core/domain/services/AIToolService";
+import { DocumentProcessingService } from "@/core/domain/services/DocumentProcessingService";
+import { FileStorageService } from "@/core/domain/services/FileStorageService";
+import { TextExtractionService } from "@/core/domain/services/TextExtractionService";
 import { GroqAIService } from "@/core/infrastructure/ai/GroqAIService";
 import { GMAOToolService } from "@/core/infrastructure/ai/GMAOToolService";
+import { GroqDocumentService } from "@/core/infrastructure/ai/GroqDocumentService";
+import { LocalFileStorageService } from "@/core/infrastructure/storage/LocalFileStorageService";
+import { TesseractTextExtractionService } from "@/core/infrastructure/ai/TesseractTextExtractionService";
 
 // Container simple (sans bibliothèque externe)
 class DIContainer {
@@ -47,6 +53,9 @@ class DIContainer {
   private static analyticsService: AnalyticsService | null = null;
   private static aiService: AIService | null = null;
   private static aiToolService: AIToolService | null = null;
+  private static documentProcessingService: DocumentProcessingService | null = null;
+  private static fileStorageService: FileStorageService | null = null;
+  private static textExtractionService: TextExtractionService | null = null;
 
   static getAssetRepository(): AssetRepository {
     if (!this.assetRepo) {
@@ -215,6 +224,9 @@ class DIContainer {
     this.analyticsService = null;
     this.aiService = null;
     this.aiToolService = null;
+    this.documentProcessingService = null;
+    this.fileStorageService = null;
+    this.textExtractionService = null;
   }
 
   static getAIToolService(): AIToolService {
@@ -236,6 +248,34 @@ class DIContainer {
       this.aiService = new GroqAIService(apiKey, this.getAIToolService());
     }
     return this.aiService;
+  }
+
+  static getDocumentProcessingService(): DocumentProcessingService {
+    if (!this.documentProcessingService) {
+      const apiKey = process.env.GROQ_API_KEY;
+      if (!apiKey) {
+        throw new Error('GROQ_API_KEY non configurée dans les variables d\'environnement');
+      }
+      this.documentProcessingService = new GroqDocumentService(
+        apiKey,
+        this.getTextExtractionService()
+      );
+    }
+    return this.documentProcessingService;
+  }
+
+  static getFileStorageService(): FileStorageService {
+    if (!this.fileStorageService) {
+      this.fileStorageService = new LocalFileStorageService();
+    }
+    return this.fileStorageService;
+  }
+
+  static getTextExtractionService(): TextExtractionService {
+    if (!this.textExtractionService) {
+      this.textExtractionService = new TesseractTextExtractionService();
+    }
+    return this.textExtractionService;
   }
 }
 
